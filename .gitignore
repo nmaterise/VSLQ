@@ -1,0 +1,18 @@
+# Exclude log files
+*.log
+
+# Exclude text files 
+*.txt
+
+# Exclude figures
+*.png
+*.eps
+
+# Python cache
+*.pyc
+*__pycache__*
+
+# Vim files
+*.swp
+tags
+
