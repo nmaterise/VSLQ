@@ -7,30 +7,8 @@ Description: This class includes the basic features of a generalized VSLQ for
 Created: 180921
 """
 
-import sys
 import numpy as np
 import qutip as qt
-from scipy.optimize import curve_fit
-import time
-import datetime
-
-"""
-======================== DEFINING THE SYSTEM =======================
-N = Number of photon states in the primary qubits.
-Ns = Number of photon states in teh shadow resonators
-W,delta,Ohm = empirical constants which are specified by engineering
-              of device (all in MHz).
-              W = Ej*alpha*C02**2
-"""
-
-f = open('parameters_15.log','a')
-date_time = datetime.datetime.now()
-f.write('\n------------- PARAMETER OPTIMIZIATION ---------------\n' +
-         'Simulation run on :: ' + str(date_time) + '\n' +
-         '-----------------------------------------------------\n')
-
-N = 3; Ns = 2
-W = 70.0*pi; delta = 700.0*pi; Ohm = 5.5; gamma_S = 9.2
 
 class vslq:
     """
@@ -59,7 +37,7 @@ class vslq:
         # Set the states and the operators for the class
         self.set_states()
         self.set_ops()
-    
+
 
     def __del__(self):
         pass
@@ -78,15 +56,18 @@ class vslq:
         ss1 = qt.basis(self.Ns, 1)
         
         # Compute the density matrices corresponding to the states
-        self.s0dm  = qt.ket2dm(s0); 
         self.s1dm  = qt.ket2dm(s1); 
-        self.s2dm  = qt.ket2dm(s2)
         self.ss0dm = qt.ket2dm(ss0);
         self.ss1dm = qt.ket2dm(ss1)
 
         # Define the logical states
         self.L0 = qt.ket2dm((s2 + s0).unit())
         self.L1 = qt.ket2dm((s2 - s1).unit())
+
+        # Initial density matrix
+        # psi0 = |L0> x |L0> x |0s> x | 0s>
+        self.psi0 = qt.tensor(self.L0, self.L0, self.ss0dm, self.ss0dm)
+
 
     def set_ops(self):
         """
@@ -95,30 +76,30 @@ class vslq:
         """
 
         # Identity operators
-        self.Is = qt.qeye(Ns)
-        self.Ip = qt.qeye(Np)
+        self.Is = qt.qeye(self.Ns)
+        self.Ip = qt.qeye(self.Np)
 
         # Projection operators |1Ll> <1Ll|, |1Lr> <1Lr|
-        self.Pl1 = tensor(ss1dm, Ip, Is, Is)
-        self.Pr1 = tensor(Ip, ss1dm, Is, Is)
+        self.Pl1 = qt.tensor(self.s1dm, self.Ip, self.Is, self.Is)
+        self.Pr1 = qt.tensor(self.Ip, self.s1dm, self.Is, self.Is)
 
         # Destruction operators
         ## Primary qubits
-        ap0 = qt.destroy(Np)
-        self.apl = qt.tensor(ap0, Ip, Is, Is)
-        self.apr = qt.tensor(Ip, ap0, Is, Is)
+        ap0 = qt.destroy(self.Np)
+        self.apl = qt.tensor(ap0, self.Ip, self.Is, self.Is)
+        self.apr = qt.tensor(self.Ip, ap0, self.Is, self.Is)
         
         ## Shadow resonators
-        as0 = qt.destroy(Ns)
-        self.asl = qt.tensor(Ip, Ip, as0, Is)
-        self.asr = qt.tensor(Ip, Ip, Is, as0)
+        as0 = qt.destroy(self.Ns)
+        self.asl = qt.tensor(self.Ip, self.Ip, as0, self.Is)
+        self.asr = qt.tensor(self.Ip, self.Ip, self.Is, as0)
 
         ## Two photon operators on the logical manifold
         self.Xl = (self.apl**2 + self.apl.dag()**2) / np.sqrt(2)
         self.Xr = (self.apr**2 + self.apr.dag()**2) / np.sqrt(2)
 
 
-    def set_H(self, W, d, Om, ws)
+    def set_H(self, W, d, Om):
         """
         Compute the Hamiltonian in the rotating frame of the primary qubits
         """
@@ -127,7 +108,7 @@ class vslq:
         Hp = -W * self.Xl*self.Xr + 0.5*d*(self.Pl1 + self.Pr1)
         
         # Hs = (W + d/2) (asl^t asl + asr^t asr)
-        Hs = (W + d/2.) * (self.asl.dag()*asl + self.asr.dat()*self.asr)
+        Hs = (W + d/2.) * (self.asl.dag()*self.asl + self.asr.dag()*self.asr)
 
         # Hps = O (apl^t asl^t + apr^t asr^t + h.c.)
         Hps = Om*(self.apl.dag()*self.asl.dag() + self.apr.dag()*self.asr.dag())
@@ -135,47 +116,51 @@ class vslq:
 
         self.H = Hp + Hs + Hps
 
-def exp_func(t,A,B,C):
-    return A*exp(-B*t) + C
 
-def get_Lifetime(Ohm,gamma_S,w_s,W,delta,i,t_max,t_steps):
-    # Collapse operators for  Lindblad master equation
-    gamma_P = 1.0/(5*i) #MHz... photon loss rate of qubits
-    c_ops = [sqrt(gamma_S)*asl,sqrt(gamma_P)*al,sqrt(gamma_P)*ar,sqrt(gamma_S)*asr]
-    t_tot = linspace(0,t_max,t_steps)
-
-    # Projection operator to measure expectation value. Initialize state to logical manifold 
-    pL = 0.5*Xl*(1 + Xl*Xr)*(1 - l1)*(1 - r1)
-    psi = tensor(ss0dm,L0,L0,ss0dm)
-    sol = mesolve(Hamiltonian(W,delta,Ohm,w_s),psi,t_tot,c_ops,pL,options=Options(nsteps=10000))
-    #sol = mesolve(Hamiltonian(W,delta,Ohm,w_s),psi,t_tot,c_ops,pL,nsteps=SAMSING!?!?!?)
-
-    x = t_tot
-    y = sol.expect[0]
-    coef,bleh = curve_fit(exp_func,x,y,maxfev=10000)
-    return 1/coef[1]
+    def set_cops(self, gammap, gammas):
+        """
+        Set the collapse operators list using the relaxation rates for the
+        primary and shadow lattice
+        """
+    
+        self.cops = [np.sqrt(gammap) * self.apl, np.sqrt(gammap) * self.apr,
+                    np.sqrt(gammas) * self.asl, np.sqrt(gammas) * self.asr]
 
 
-"""
-================================== RUNNING SIMULATION =====================================
-# This is a very crude way to get the time to scale appropriately for the mesolve function.
-# It is very inefficient, so I'm looking into truncating this to a much smaller time list
-# such that an appropriate exponential curve_fit can still be applied. As it stands,
-# anything larger than i = 5 takes too long. For reference, Kapit's mathematica simulator
-# runs up to i = 16.
-"""
+    def run_dynamics(self, tpts, gammap, gammas):
+        """
+        Run the master equation dynamics for a given set of times, tpts
+        """
 
-i = 1; max_it = 30
-tg0 = time.time()
-# for i in range(1,max_i):
-num_it = 0; epsilon = 0.75; threshold = 0.01
-t_max = 35*i*i; t_steps = t_max*600
-lifetime = get_Lifetime(Ohm,gamma_S,w_s,W,delta,i,t_max,t_steps)
-opt_dat = grape_optimize(i,W,delta,num_it,max_it,epsilon,lifetime,
-                         Ohm,gamma_S,w_s)
-log_data(i,lifetime,opt_dat)
+        # Set the collapse operators
+        self.set_cops(gammap, gammas)
 
-tg1 = time.time()
+        # Run the master equation solver and get the density matrix
+        psif = qt.mesolve(self.H, self.psi0, tpts, self.cops, [],
+                options=qt.Options(nsteps=1000))
 
-print_runtime(tg0,tg1)
-f.close()
+
+        return psif
+
+
+    def get_logical_expect(self, psif):
+        """
+        Computes the expectation value of the logical operator, pL
+        """
+
+        # Projection operator to compute the expectation value
+        self.pL = 0.5 * self.Xl * (1. + self.Xl*self.Xr) * (1. - self.Pl1) \
+                  * (1 - self.Pr1)
+
+        # Compute the expectation value using the states from the mesolve
+        # solution, psif
+        pL_expect = qt.expect(self.pL, psif.states)
+
+        return pL_expect
+
+
+if __name__ == '__main__':
+    
+    # Some example settings
+    N = 3; Ns = 2
+    W = 70.0*pi; delta = 700.0*pi; Ohm = 5.5; gamma_S = 9.2

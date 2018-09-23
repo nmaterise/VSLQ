@@ -7,10 +7,12 @@
 # Exclude figures
 *.png
 *.eps
+*.html
 
 # Python cache
 *.pyc
 *__pycache__*
+*.ipynb_checkpoints/*
 
 # Vim files
 *.swp
