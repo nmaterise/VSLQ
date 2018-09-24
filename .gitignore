@@ -3,6 +3,7 @@
 
 # Exclude text files 
 *.txt
+*.bib
 
 # Exclude figures
 *.png
@@ -13,6 +14,7 @@
 *.pyc
 *__pycache__*
 *.ipynb_checkpoints/*
+*.pyx
 
 # Vim files
 *.swp
