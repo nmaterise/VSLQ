@@ -13,7 +13,7 @@ class transmon_disp:
     Implements the cavity-transmon interaction in the dispersive regime
     """
 
-    def __init__(self, alpha, self_kerr, Nq, Nc, psi0=None):
+    def __init__(self, alpha, self_kerr, wq, Nq, Nc, psi0=None):
         """
         Class constructor
         """
@@ -23,6 +23,7 @@ class transmon_disp:
         self.alpha = alpha; self.self_kerr = self_kerr;
         self.Nq    = Nq;    self.Nc        = Nc;
         self.chi   = np.sqrt(2 * self_kerr * alpha)
+        self.wq    = wq 
         
         # Initialize the collapse operators as None
         self.cops  = None
@@ -64,7 +65,6 @@ class transmon_disp:
         at0 = qt.destroy(self.Nq)
         self.at = qt.tensor(at0, qt.qeye(self.Nc))
 
-
         # Set the cavity operators
         ac0 = qt.destroy(self.Nc)
         self.ac = qt.tensor(qt.qeye(self.Nq), ac0)
@@ -74,7 +74,7 @@ class transmon_disp:
     def set_H(self):
         """
         Sets the dispersive Hamiltonian for a transmon coupled to a cavity
-        in the rotating frame of the transmon and cavity
+        in the rotating frame of the cavity
 
         *** Note ***
         This function does not include the arguments for the string-based
@@ -83,14 +83,14 @@ class transmon_disp:
         """
 
         # Time independent Hamiltonian
-        H0 = -0.5 * self.alpha * self.at**2 \
+        H0 = self.wq*self.at.dag()*self.at - 0.5 * self.alpha * self.at**2 \
              - self.chi * self.ac.dag()*self.ac * self.at.dag()*self.at
 
         # Time dependent readout Hamiltonian
-        Hc = (self.ac + self.ac.dag()) * (self.at + self.at.dag())
-        Hc_str = 'A*0.5*(tanh((t - t1)/a)-tanh((t - t2)/a)) * sin(w*t-ph) + dc'
+        Hc = (self.ac + self.ac.dag())
+        Hc_str = 'A*0.5*(tanh((t - t1)/a)-tanh((t - t2)/a)) * cos(w*t-ph) + dc'
 
-        self.H = [H0, [Hc, Hc_str]]
+        self.H = [0.*H0, [Hc, Hc_str]]
 
 
     def set_init_state(self, psi0=None):
@@ -173,8 +173,13 @@ def test_transmon():
     Nc = 16; Nq = 3;
 
     # 250 MHz anharmonicity, 50 MHz self-Kerr
-    alpha = 0.250;      self_kerr = 0.05;
+    alpha = 0.250*2*np.pi;      self_kerr = 0.05*2*np.pi;
+    chi = np.sqrt(2*alpha*self_kerr)
 
+    # Compute the coupling factor g from chi = g^2 / delta
+    # Use a delta of 2.5 GHz
+    wq = 5*2*np.pi; 
+    
     # Set the cavity linewidth and the transmon T1
     # T1 = 40 us, kappa = 125 kHz
     T1 = 40e3; gamma1 = 1./T1; kappa = 0.000125;
@@ -185,23 +190,22 @@ def test_transmon():
     psi0 = (psi00 - psi01).unit()
     
     # Create an instance of the class
-    my_tmon = transmon_disp(alpha, self_kerr, Nq, Nc, psi0)
+    my_tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi0)
 
     # Set the time of the simulation in ns
     tpts = np.linspace(0, 1000, 3001)
 
-
     # Set the drive parameters for the readout
-    t1 = 0.5*tpts.max(); t2 = tpts.max(); w = alpha; beta = 0.01;
+    t1 = 0.5*tpts.max(); t2 = tpts.max(); w = 0.; beta = 0.01;
     args = my_tmon.get_cy_window_dict(t1, t2, w, beta) 
 
     # Run the mesolver
     res = my_tmon.run_dynamics(tpts, gamma1, kappa, args) 
     aavg = my_tmon.get_a_expect(res)
+    navg = my_tmon.get_n_expect(res)
 
-
-    ppt.plot_expect(tpts, aavg, 'a')
-
+    ppt.plot_expect(tpts, aavg, 'a', file_ext='a')
+    ppt.plot_expect(tpts, navg, 'n', file_ext='n')
 
 
 if __name__ == '__main__':
