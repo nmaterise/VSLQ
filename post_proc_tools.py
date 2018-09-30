@@ -74,12 +74,12 @@ def plot_wigner(xvec, W,
 
     # Write the results to file
     if file_ext is not None:
-        fig.savefig('wigner_%s.eps' % file_ext, format='eps') 
-        fig.savefig('wigner_%s.png' % file_ext, format='png') 
+        fig.savefig('figs/wigner_%s.eps' % file_ext, format='eps') 
+        fig.savefig('figs/wigner_%s.png' % file_ext, format='png') 
     else:
         tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
-        fig.savefig('wigner_%s.eps' % tstamp, format='eps') 
-        fig.savefig('wigner_%s.png' % tstamp, format='png') 
+        fig.savefig('figs/wigner_%s.eps' % tstamp, format='eps') 
+        fig.savefig('figs/wigner_%s.png' % tstamp, format='png') 
         
 
 
@@ -107,12 +107,12 @@ def plot_expect(tpts, op_avg, op_name='',
     
     # Save the figure to file
     if file_ext is not None:
-        fig.savefig('expect_%s.eps' % file_ext, format='eps') 
-        fig.savefig('expect_%s.png' % file_ext, format='png') 
+        fig.savefig('figs/expect_%s.eps' % file_ext, format='eps') 
+        fig.savefig('figs/expect_%s.png' % file_ext, format='png') 
     else:
         tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
-        fig.savefig('expect_%s.eps' % tstamp, format='eps') 
-        fig.savefig('expect_%s.png' % tstamp, format='png') 
+        fig.savefig('figs/expect_%s.eps' % tstamp, format='eps') 
+        fig.savefig('figs/expect_%s.png' % tstamp, format='png') 
     
 
 

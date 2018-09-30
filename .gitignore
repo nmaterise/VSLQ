@@ -1,11 +1,15 @@
 # Exclude log files
 *.log
 
+# Omit the data files
+data/*
+
 # Exclude text files 
 *.txt
 *.bib
 
 # Exclude figures
+figs/
 *.png
 *.eps
 *.html

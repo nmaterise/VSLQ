@@ -88,7 +88,7 @@ class transmon_disp:
 
         # Time dependent readout Hamiltonian
         Hc = (self.ac + self.ac.dag())
-        Hc_str = 'A*0.5*(tanh((t - t1)/a)-tanh((t - t2)/a)) * cos(w*t-ph) + dc'
+        Hc_str = 'A * exp(-(t-(t1-t2)/2)**2/((t2-t1)**2/8)) * cos(w*t-ph) + dc'
 
         self.H = [0.*H0, [Hc, Hc_str]]
 
@@ -141,13 +141,10 @@ class transmon_disp:
         Compute the expectation value of the a operator for the cavity
         """
 
-
         # Compute the expectation value and return it
         a_expect = qt.expect(self.ac, psif.states)
 
-        
         return a_expect
-
 
 
     def get_n_expect(self, psif):
@@ -155,10 +152,8 @@ class transmon_disp:
         Compute the expectation value of the number operator for the transmon
         """
 
-
         # Compute the expectation value and return it
         n_expect = qt.expect(self.at.dag()*self.at, psif.states)
-
         
         return n_expect
 
@@ -183,11 +178,13 @@ def test_transmon():
     # Set the cavity linewidth and the transmon T1
     # T1 = 40 us, kappa = 125 kHz
     T1 = 40e3; gamma1 = 1./T1; kappa = 0.000125;
+    T1 = 0.; gamma1 = 0.; kappa = 0.1;
     
     # Set the initial state
     psi00 = qt.tensor(qt.basis(Nq, 0), qt.basis(Nc, 0))
     psi01 = qt.tensor(qt.basis(Nq, 1), qt.basis(Nc, 0))
     psi0 = (psi00 - psi01).unit()
+    psi0 = psi00 
     
     # Create an instance of the class
     my_tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi0)
@@ -196,16 +193,16 @@ def test_transmon():
     tpts = np.linspace(0, 1000, 3001)
 
     # Set the drive parameters for the readout
-    t1 = 0.5*tpts.max(); t2 = tpts.max(); w = 0.; beta = 0.01;
+    t1 = 0; t2 = tpts.max(); w = 0.; beta = 0.01;
     args = my_tmon.get_cy_window_dict(t1, t2, w, beta) 
 
     # Run the mesolver
     res = my_tmon.run_dynamics(tpts, gamma1, kappa, args) 
     aavg = my_tmon.get_a_expect(res)
-    navg = my_tmon.get_n_expect(res)
+    # navg = my_tmon.get_n_expect(res)
 
     ppt.plot_expect(tpts, aavg, 'a', file_ext='a')
-    ppt.plot_expect(tpts, navg, 'n', file_ext='n')
+    # ppt.plot_expect(tpts, navg, 'n', file_ext='n')
 
 
 if __name__ == '__main__':
