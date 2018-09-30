@@ -40,7 +40,7 @@ class transmon_disp:
 
 
     @staticmethod
-    def get_cy_window_dict(t1, t2, w, beta, A=1, ph=0, dc=0):
+    def get_cy_window_dict(t0, sig, w, beta, A=1, ph=0, dc=0):
         """
         Computes the windowed sine function with start and stop
         times t1, t2, at frequency w and rise time of the window
@@ -49,8 +49,8 @@ class transmon_disp:
         """
 
         # Arguments dictionary
-        args = {'w'  : w,  'a'  : beta, 'A'  : A, 't1' : t1,
-                't2' : t2, 'dc' : dc,   'ph' : ph}
+        args = {'w'  : w,  'a'  : beta, 'A'  : A, 't0' : t0,
+                'sig' : sig, 'dc' : dc,   'ph' : ph}
 
         return args
 
@@ -88,7 +88,7 @@ class transmon_disp:
 
         # Time dependent readout Hamiltonian
         Hc = (self.ac + self.ac.dag())
-        Hc_str = 'A * exp(-(t-(t1-t2)/2)**2/((t2-t1)**2/8)) * cos(w*t-ph) + dc'
+        Hc_str = 'A * exp(-(t - t0)**2/(2*sig**2))*cos(w*t-ph) + dc'
 
         self.H = [0.*H0, [Hc, Hc_str]]
 
@@ -193,8 +193,8 @@ def test_transmon():
     tpts = np.linspace(0, 1000, 3001)
 
     # Set the drive parameters for the readout
-    t1 = 0; t2 = tpts.max(); w = 0.; beta = 0.01;
-    args = my_tmon.get_cy_window_dict(t1, t2, w, beta) 
+    t1 = tpts.max()/2; sig = tpts.max()/6; w = 0.; beta = 0.01;
+    args = my_tmon.get_cy_window_dict(t1, sig, w, beta) 
 
     # Run the mesolver
     res = my_tmon.run_dynamics(tpts, gamma1, kappa, args) 

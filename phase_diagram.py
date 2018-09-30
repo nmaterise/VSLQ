@@ -31,35 +31,54 @@ def get_transmon_pdiag(tmon, tpts, kappa, nkappas,
     """
 
     # Save the results for a_avg
-    a_avg = np.zeros(nkappas.size, dtype=np.complex128)
+    a_avg = [] # np.zeros(nkappas.size, dtype=np.complex128)
 
     # Save the time traces
     if write_ttraces:
-        ttraces = np.zeros(nkappas.size * tpts.size, dtype=np.complex128)
+        ttraces = [] # np.zeros(nkappas.size * tpts.size, dtype=np.complex128)
 
+    # Compute the time spacing for the tpts
+    dt = tpts.max() / tpts.size
+    
     # Create a loop over kappa runs
     for idx, nk in enumerate(nkappas):
 
         # Setup the transmon inputs
-        t1 = nk / kappa; t2 = tpts.max()
-        args = tmon.get_cy_window_dict(t1, t2, 0, 0.01)
+        t0 = tpts.max() - nk / (2*kappa); sig = nk / (6*kappa);
+        
+        print('Running measurement from %g to %g ns ...'%(t0-sig/2, t0+sig/2))
+
+        args = tmon.get_cy_window_dict(t0, sig, 0, 0.01)
         res  = tmon.run_dynamics(tpts, gamma1, kappa, args)
         aavg = tmon.get_a_expect(res)
         if write_ttraces:
-            ttraces[idx*tpts.size:idx*tpts.size+tpts.size] = aavg
+            ttraces.append(aavg)
             
-    
         # Store the results
-        a_avg[idx] = np.average(aavg)
+        idx = ((tpts < t0+dt) & (tpts > t0-dt))
+        a_avg.append(aavg[idx][np.argmax(np.abs(aavg[idx]))])
+
+    a_avg = np.asarray(a_avg)
+    a_avg = a_avg.flatten()
 
     # Write the results to file
     tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S') 
     a_avg.real.tofile('data/areal_%s_%s.bin' % (fext, tstamp)) 
     a_avg.imag.tofile('data/aimag_%s_%s.bin' % (fext, tstamp))
     if write_ttraces:
+        ttraces = np.asarray(ttraces)
         ttraces.real.tofile('data/areal_traces_%s_%s.bin' % (fext, tstamp))
         ttraces.imag.tofile('data/aimag_traces_%s_%s.bin' % (fext, tstamp))
     
+
+def parfor_update(tmon, t0, sig):
+    """
+    TODO: Rewrite above to work with a parallel for
+    """
+    pass
+    
+
+
 
 def test_get_transmon_pdiag():
     """
@@ -80,29 +99,36 @@ def test_get_transmon_pdiag():
     # Set the cavity linewidth and the transmon T1
     # T1 = 40 us, kappa = 125 kHz
     T1 = 40e3; gamma1 = 1./T1; kappa = 0.000125;
-    T1 = 0.; gamma1 = 0.; kappa = 0.1;
+    T1 = 0.; gamma1 = 0.; kappa = chi / 2.#0.1;
     
     # Set the initial state
-    psi00 = qt.tensor(qt.basis(Nq, 0), qt.basis(Nc, 0))
-    psi01 = qt.tensor(qt.basis(Nq, 1), qt.basis(Nc, 0))
-    psi0 = (psi00 - psi01).unit()
-    psi0 = psi00 
+    psi_g0 = qt.tensor(qt.basis(Nq, 0), qt.basis(Nc, 0))
+    psi_e0 = qt.tensor(qt.basis(Nq, 1), qt.basis(Nc, 0))
+    psi0 = (psi_g0 - psi_e0).unit()
+    # psi0 = psi_g0 
     
     # Create an instance of the class
-    tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi0)
+    # tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi_g0)
 
     # Set the time of the simulation in ns
     tpts = np.linspace(0, 1000, 3001)
 
     # Run the phase diagram code here
-    nkappas = np.logspace(-2, 6, 9, base=2)
+    nkappas = np.logspace(-2, 9, 10, base=2)
+
     ## Run once with the |00> state
-    get_transmon_pdiag(tmon, tpts, kappa, nkappas, gamma1, fext='0g',
-            write_ttraces=True)
+    # get_transmon_pdiag(tmon, tpts, kappa, nkappas, gamma1, fext='0g',
+    #         write_ttraces=False)
 
     ## Run again with |01> state
-    # tmon.set_init_state(psi01) 
-    # get_transmon_pdiag(tmon, tpts, kappa, nkappas, gamma1, fext='0e')
+    tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi_e0)
+    get_transmon_pdiag(tmon, tpts, kappa, nkappas, gamma1, fext='0e',
+                         write_ttraces=False)
+
+    # Try with the Bell state (|g0> - |e0>) / sqrt(2)
+    # tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi0)
+    # get_transmon_pdiag(tmon, tpts, kappa, nkappas, gamma1, fext='0e0g',
+    #                     write_ttraces=False)
 
 
 if __name__ == '__main__':
