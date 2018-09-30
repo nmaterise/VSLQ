@@ -90,7 +90,7 @@ class transmon_disp:
         Hc = (self.ac + self.ac.dag())
         Hc_str = 'A * exp(-(t - t0)**2/(2*sig**2))*cos(w*t-ph) + dc'
 
-        self.H = [0.*H0, [Hc, Hc_str]]
+        self.H = [H0, [Hc, Hc_str]]
 
 
     def set_init_state(self, psi0=None):
