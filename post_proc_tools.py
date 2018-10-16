@@ -61,10 +61,6 @@ def plot_wigner(xvec, W,
     ax.set_title(tstr, fontsize=tsize)
 
     # Set the axis tick labels to a reasonable size
-    # for tick in ax.get_xticklabels():
-    #     tick.set_fontsize(fsize)
-    # for tick in ax.get_yticklabels():
-    #     tick.set_fontsize(fsize)
     set_axes_fonts(ax, fsize)
     
     # Set the color bar
@@ -89,8 +85,6 @@ def plot_expect(tpts, op_avg, op_name='',
     """
     Plot the expectation value of an operator as a function of time
     """
-
-
     # Create the figure and axes
     fig, ax = plt.subplots(1, 1, figsize=(10, 6))
     fsize = 24; tsize = 26;
@@ -115,6 +109,38 @@ def plot_expect(tpts, op_avg, op_name='',
         fig.savefig('figs/expect_%s.png' % tstamp, format='png') 
     
 
+def plot_phase_traces(tpts, adata, nkappas, drv_args):
+    """
+    Plots the time traces <a>(t) and the drives used to produce them
+    """
+
+
+    # Setup the figure
+    fig, ax = plt.subplots(2, 1, figsize=(10, 6))
+    
+    # Set the figure axes
+    fsize = 24
+    set_axes_fonts(ax, fsize)
+    
+    # Reshape the data to more sensible dimensions
+    # Nkappas x Ntpts    
+    adata = adata.reshape([nkappas.size, tpts.size])
+
+    # Plot the data for each kappa
+    for idx, ad in enumerate(adata):
+        ax[0].plot(tpts, ad, label=r'$kappa=%g$' % (nkappas[idx]))
+        
+
+
+
+
+
+
+
+
+
+def plot_phase_diagram(ag0, ae0, kappa):
+    pass
 
 
 

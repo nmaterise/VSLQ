@@ -13,7 +13,7 @@ class transmon_disp:
     Implements the cavity-transmon interaction in the dispersive regime
     """
 
-    def __init__(self, alpha, self_kerr, wq, Nq, Nc, psi0=None):
+    def __init__(self, alpha, self_kerr, wq, Nq, Nc, psi0=None, g=1):
         """
         Class constructor
         """
@@ -24,6 +24,7 @@ class transmon_disp:
         self.Nq    = Nq;    self.Nc        = Nc;
         self.chi   = np.sqrt(2 * self_kerr * alpha)
         self.wq    = wq 
+        self.g     = g
         
         # Initialize the collapse operators as None
         self.cops  = None
@@ -70,7 +71,6 @@ class transmon_disp:
         self.ac = qt.tensor(qt.qeye(self.Nq), ac0)
         
 
-
     def set_H(self):
         """
         Sets the dispersive Hamiltonian for a transmon coupled to a cavity
@@ -83,8 +83,13 @@ class transmon_disp:
         """
 
         # Time independent Hamiltonian
-        H0 = self.wq*self.at.dag()*self.at - 0.5 * self.alpha * self.at**2 \
-             - self.chi * self.ac.dag()*self.ac * self.at.dag()*self.at
+        # H0 = self.wq*self.at.dag()*self.at - 0.5 * self.alpha * self.at**2 \
+        #      - self.chi * self.ac.dag()*self.ac * self.at.dag()*self.at
+        H0 = - self.chi * self.ac.dag()*self.ac * self.at.dag()*self.at
+        
+        # Simply just g * (b^t a + b a^t)
+        # H0 = self.g * (self.at.dag()*self.ac + self.at*self.ac.dag())
+        # H0 = self.g * (self.ac.dag()*self.at + self.ac*self.at.dag())
 
         # Time dependent readout Hamiltonian
         Hc = (self.ac + self.ac.dag())
