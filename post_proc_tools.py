@@ -109,34 +109,80 @@ def plot_expect(tpts, op_avg, op_name='',
         fig.savefig('figs/expect_%s.png' % tstamp, format='png') 
     
 
-def plot_phase_traces(tpts, adata, nkappas, drv_args):
+def plot_phase_traces(tpts, adata, nkappas, drvs, kappa, tscale='ns'):
     """
     Plots the time traces <a>(t) and the drives used to produce them
     """
 
-
     # Setup the figure
-    fig, ax = plt.subplots(2, 1, figsize=(10, 6))
+    fig, ax = plt.subplots(3, 1, figsize=(8, 8))
     
     # Set the figure axes
     fsize = 24
-    set_axes_fonts(ax, fsize)
+    for axx in ax:
+        set_axes_fonts(axx, fsize)
     
     # Reshape the data to more sensible dimensions
     # Nkappas x Ntpts    
     adata = adata.reshape([nkappas.size, tpts.size])
 
     # Plot the data for each kappa
-    for idx, ad in enumerate(adata):
-        ax[0].plot(tpts, ad, label=r'$kappa=%g$' % (nkappas[idx]))
+    for ad, drv, nk in zip(adata, drvs, nkappas):
+        ax[0].plot(kappa*tpts, ad.real)
+        ax[1].plot(kappa*tpts, ad.imag)
+        ax[2].plot(kappa*tpts, drv, label=r'$%g/\kappa$'% (nk))
         
+    # Set the x, y axis labels
+    ax[0].set_ylabel(r'$\Re\{\hat{a}\}$')
+    ax[1].set_ylabel(r'$\Im\{\hat{a}\}$')
+    ax[2].set_xlabel(r'Time (1/$\kappa$)')
+    ax[2].set_ylabel(r'$g_x$')
+    
+    # Get and set the legends
+    hdls2, legs2 = ax[2].get_legend_handles_labels()
+    ax[2].legend(hdls2, legs2, loc='best')
+    
+
+    # Fix the layout
+    plt.tight_layout()
+    
+    # Save the result to file
+    tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
+    fig.savefig('figs/traces_phase_diagram_%s.eps' % tstamp, format='eps')
+    fig.savefig('figs/traces_phase_diagram_%s.png' % tstamp, format='png')
 
 
+def plot_phase_ss(adata, nkappas):
+    """
+    Plots the steady state values of <a>(t) in a quadrature plot
+    """
 
+    # Setup the figure
+    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+    
+    # Set the figure axes
+    fsize = 24
+    set_axes_fonts(ax, fsize)
+    
+    # Plot the data for each kappa
+    ax.plot(adata.real, adata.imag, 'x-')
+        
+    # Set the x, y axis labels
+    ax.set_ylabel(r'$\Im\{\hat{a}\}$')
+    ax.set_xlabel(r'$\Re\{\hat{a}\}$')
+    
+    # Get and set the legends
+    hdls, legs = ax.get_legend_handles_labels()
+    ax.legend(hdls, legs, loc='best')
+    
 
-
-
-
+    # Fix the layout
+    plt.tight_layout()
+    
+    # Save the result to file
+    tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
+    fig.savefig('figs/ss_phase_diagram_%s.eps' % tstamp, format='eps')
+    fig.savefig('figs/ss_phase_diagram_%s.png' % tstamp, format='png')
 
 
 def plot_phase_diagram(ag0, ae0, kappa):

@@ -85,11 +85,11 @@ class transmon_disp:
         # Time independent Hamiltonian
         # H0 = self.wq*self.at.dag()*self.at - 0.5 * self.alpha * self.at**2 \
         #      - self.chi * self.ac.dag()*self.ac * self.at.dag()*self.at
-        H0 = - self.chi * self.ac.dag()*self.ac * self.at.dag()*self.at
+        # H0 = - self.chi * self.ac.dag()*self.ac * self.at.dag()*self.at
         
         # Simply just g * (b^t a + b a^t)
         # H0 = self.g * (self.at.dag()*self.ac + self.at*self.ac.dag())
-        # H0 = self.g * (self.ac.dag()*self.at + self.ac*self.at.dag())
+        H0 = self.g * (self.ac.dag()*self.at + self.ac*self.at.dag())
 
         # Time dependent readout Hamiltonian
         Hc = (self.ac + self.ac.dag())
@@ -112,10 +112,7 @@ class transmon_disp:
     def set_cops(self, gamma1, kappa):
         """
         Set the collapse operators, assuming the system is shot noise limited,
-        e.g. T2 > T1
-        """
-
-        # Use 1/T1 for the transmon and the line width of the cavity
+        e.g. T2 > T1 """ # Use 1/T1 for the transmon and the line width of the cavity
         self.cops = [np.sqrt(gamma1) * self.at,
                      np.sqrt(kappa) * self.ac]
 
@@ -198,8 +195,10 @@ def test_transmon():
     tpts = np.linspace(0, 1000, 3001)
 
     # Set the drive parameters for the readout
-    t1 = tpts.max()/2; sig = tpts.max()/6; w = 0.; beta = 0.01;
-    args = my_tmon.get_cy_window_dict(t1, sig, w, beta) 
+    t0 = tpts.max() - 3*nk / (2*kappa); 
+    sig = nk / (6*kappa); 
+    w = 0.; beta = 0.01;
+    args = my_tmon.get_cy_window_dict(t0, sig, w, beta) 
 
     # Run the mesolver
     res = my_tmon.run_dynamics(tpts, gamma1, kappa, args) 
