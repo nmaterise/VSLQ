@@ -133,10 +133,10 @@ def plot_phase_traces(tpts, adata, nkappas, drvs, kappa, tscale='ns'):
         ax[2].plot(kappa*tpts, drv, label=r'$%g/\kappa$'% (nk))
         
     # Set the x, y axis labels
-    ax[0].set_ylabel(r'$\Re\{\hat{a}\}$')
-    ax[1].set_ylabel(r'$\Im\{\hat{a}\}$')
-    ax[2].set_xlabel(r'Time (1/$\kappa$)')
-    ax[2].set_ylabel(r'$g_x$')
+    ax[0].set_ylabel(r'$\Re\{\hat{a}\}$', fontsize=fsize)
+    ax[1].set_ylabel(r'$\Im\{\hat{a}\}$', fontsize=fsize)
+    ax[2].set_xlabel(r'Time (1/$\kappa$)', fontsize=fsize)
+    ax[2].set_ylabel(r'Drive Amplitude ($g_x$)', fontsize=fsize)
     
     # Get and set the legends
     hdls2, legs2 = ax[2].get_legend_handles_labels()
@@ -152,7 +152,7 @@ def plot_phase_traces(tpts, adata, nkappas, drvs, kappa, tscale='ns'):
     fig.savefig('figs/traces_phase_diagram_%s.png' % tstamp, format='png')
 
 
-def plot_phase_ss(adata, nkappas):
+def plot_phase_ss(adata, tpts, nkappas):
     """
     Plots the steady state values of <a>(t) in a quadrature plot
     """
@@ -164,12 +164,19 @@ def plot_phase_ss(adata, nkappas):
     fsize = 24
     set_axes_fonts(ax, fsize)
     
+    # Reshape the data
+    adata = adata.reshape([nkappas.size, tpts.size])
+
+    # Take the steady state values, the last values
+    # in the time domain simulation
+    a0 = np.array([ad[-1] for ad in adata])
+
     # Plot the data for each kappa
-    ax.plot(adata.real, adata.imag, 'x-')
+    ax.plot(a0.real, a0.imag, 'x-')
         
     # Set the x, y axis labels
-    ax.set_ylabel(r'$\Im\{\hat{a}\}$')
-    ax.set_xlabel(r'$\Re\{\hat{a}\}$')
+    ax.set_ylabel(r'$\Im\{\hat{a}\}$', fontsize=fsize)
+    ax.set_xlabel(r'$\Re\{\hat{a}\}$', fontsize=fsize)
     
     # Get and set the legends
     hdls, legs = ax.get_legend_handles_labels()

@@ -6,6 +6,7 @@ Dispersive readout of a transmon qubit Hamiltonian class
 import qutip as qt
 import numpy as np
 import post_proc_tools as ppt
+import matplotlib.pyplot as plt
 
 
 class transmon_disp:
@@ -13,7 +14,7 @@ class transmon_disp:
     Implements the cavity-transmon interaction in the dispersive regime
     """
 
-    def __init__(self, alpha, self_kerr, wq, Nq, Nc, psi0=None, g=1):
+    def __init__(self, alpha, self_kerr, wq, Nq, Nc, psi0=None, g=1.+0*1j):
         """
         Class constructor
         """
@@ -89,7 +90,9 @@ class transmon_disp:
         
         # Simply just g * (b^t a + b a^t)
         # H0 = self.g * (self.at.dag()*self.ac + self.at*self.ac.dag())
-        H0 = self.g * (self.ac.dag()*self.at + self.ac*self.at.dag())
+        # From Didier et al. supplemental section
+        H0 = self.g*self.ac.dag()*self.at \
+            + self.g.conjugate()*self.ac*self.at.dag()
 
         # Time dependent readout Hamiltonian
         Hc = (self.ac + self.ac.dag())
@@ -106,16 +109,17 @@ class transmon_disp:
 
         # Set the state psi0
         psi_gnd = qt.tensor(qt.basis(self.Nq, 0), qt.basis(self.Nc, 0))
-        self.psi0 = psi0 if psi0 is not None else psi_gnd
+        self.psi0 = psi0 if (psi0 is not None) else psi_gnd
 
 
     def set_cops(self, gamma1, kappa):
         """
         Set the collapse operators, assuming the system is shot noise limited,
-        e.g. T2 > T1 """ # Use 1/T1 for the transmon and the line width of the cavity
+        e.g. T2 > T1 
+        """
+        # Use 1/T1 for the transmon and the line width of the cavity
         self.cops = [np.sqrt(gamma1) * self.at,
                      np.sqrt(kappa) * self.ac]
-
 
 
     def run_dynamics(self, tpts, gamma1, kappa, args):
@@ -124,18 +128,14 @@ class transmon_disp:
         """
 
         # Set the collapse operators if they are None
-        if (self.cops is None) and (gamma1 is not None)\
-            and (kappa is not None):
-            self.set_cops(gamma1, kappa)
-
+        self.set_cops(gamma1, kappa)
 
         # Run the dynamics and return the results object
-        psif = qt.mesolve(self.H, self.psi0, tpts, self.cops, [],
-                         options=qt.Options(nsteps=1000), args=args)
+        psif = qt.mesolve(self.H, self.psi0, tpts,
+                          c_ops=self.cops, e_ops=[], args=args)
 
         
         return psif
-
 
 
     def get_a_expect(self, psif):
@@ -145,6 +145,7 @@ class transmon_disp:
 
         # Compute the expectation value and return it
         a_expect = qt.expect(self.ac, psif.states)
+
 
         return a_expect
 
@@ -156,6 +157,7 @@ class transmon_disp:
 
         # Compute the expectation value and return it
         n_expect = qt.expect(self.at.dag()*self.at, psif.states)
+
         
         return n_expect
 
@@ -185,28 +187,34 @@ def test_transmon():
     # Set the initial state
     psi00 = qt.tensor(qt.basis(Nq, 0), qt.basis(Nc, 0))
     psi01 = qt.tensor(qt.basis(Nq, 1), qt.basis(Nc, 0))
-    psi0 = (psi00 - psi01).unit()
-    psi0 = psi00 
     
     # Create an instance of the class
-    my_tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi0)
+    my_tmon = transmon_disp(alpha, self_kerr, wq, Nq,
+                            Nc, psi00, g=np.exp(1j*2))
 
     # Set the time of the simulation in ns
-    tpts = np.linspace(0, 1000, 3001)
+    tpts = np.linspace(0, 10./kappa, 1001)
 
     # Set the drive parameters for the readout
-    t0 = tpts.max() - 3*nk / (2*kappa); 
-    sig = nk / (6*kappa); 
+    t0 = 3. / (2*kappa); 
+    sig = 1. / (6*kappa); 
     w = 0.; beta = 0.01;
     args = my_tmon.get_cy_window_dict(t0, sig, w, beta) 
 
     # Run the mesolver
-    res = my_tmon.run_dynamics(tpts, gamma1, kappa, args) 
+    res = my_tmon.run_dynamics(tpts, gamma1, kappa, args)
     aavg = my_tmon.get_a_expect(res)
+    # xvec, Wi = ppt.get_wigner(res.states[0])
+    # xvec, Wf = ppt.get_wigner(res.states[-1])
+
+    # ppt.plot_wigner(xvec, Wi, tstr='Initial State')
+    # ppt.plot_wigner(xvec, Wi-Wf, tstr='Initial-Final State')
+
     # navg = my_tmon.get_n_expect(res)
 
-    ppt.plot_expect(tpts, aavg, 'a', file_ext='a')
+    # ppt.plot_expect(tpts, aavg, 'a', file_ext='a')
     # ppt.plot_expect(tpts, navg, 'n', file_ext='n')
+    plt.plot(aavg.real, aavg.imag)
 
 
 if __name__ == '__main__':

@@ -47,9 +47,12 @@ def get_transmon_pdiag(tmon, tpts, kappa, nkappas,
     if write_ttraces:
 
         # Get the full <a> (t) time traces
-        ttraces = qt.parallel.parfor(parfor_update_traces, [tpts]*nkappas.size,
-                [tmon]*nkappas.size, nkappas, 
-                [kappa]*nkappas.size, [gamma1]*nkappas.size,
+        ttraces = qt.parallel.parfor(parfor_update_traces,
+                [tpts]*nkappas.size,
+                [tmon]*nkappas.size,
+                nkappas, 
+                [kappa]*nkappas.size,
+                [gamma1]*nkappas.size,
                 [g]*nkappas.size)
 
         # Convert the results to numpy arrays
@@ -70,12 +73,15 @@ def get_transmon_pdiag(tmon, tpts, kappa, nkappas,
     else:
 
         # Compute the averages, only return steady state values
-        a_avg = qt.parallel.parfor(parfor_update, [tpts]*nkappas.size,
-                [tmon]*nkappas.size, nkappas, 
-                [kappa]*nkappas.size, [gamma1]*nkappas.size)
+        a_avg = qt.parallel.parfor(parfor_update,
+                [tpts]*nkappas.size,
+                [tmon]*nkappas.size,
+                nkappas, 
+                [kappa]*nkappas.size,
+                [gamma1]*nkappas.size)
 
         # Change the data to a numpy array
-        a_avg = np.asarray(a_avg)
+        a_avg = np.asarray(a_avg, dtype=np.complex128)
         a_avg = a_avg.flatten()
 
         # Write the results to file
@@ -152,8 +158,10 @@ def test_get_transmon_pdiag():
     # Set the cavity linewidth and the transmon T1
     # T1 = 40 us, kappa = 125 kHz
     T1 = 40e3; gamma1 = 1./T1; kappa = 0.000125;
-    T1 = 0.; gamma1 = 0.; kappa = 0.1; # chi / 2.#0.1;
-    alpha = 0.250*2*np.pi;      self_kerr = 2*kappa**2/alpha;
+    T1 = 0.; gamma1 = 0.;
+    kappa = 0.1; # chi / 2.#0.1;
+    alpha = 0.250*2*np.pi;
+    self_kerr = 2*kappa**2/alpha;
     Delta = 1;
     g = np.sqrt(Delta * kappa / 2.)
     
@@ -182,8 +190,8 @@ def test_get_transmon_pdiag():
 
     ## Run once with the |00> state
     print('Running simulation with g = %g MHz ...\n\n' % (g/1e-3))
-    tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi_g0, g)
-    adata, _ = get_transmon_pdiag(tmon, tpts, kappa, nkappas,
+    tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi_g0, g=g*np.exp(1j))
+    adata_g, _ = get_transmon_pdiag(tmon, tpts, kappa, nkappas,
                 gamma1, fext='0g', write_ttraces=True, g=g)
 
     # tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi_e0, g)
@@ -192,8 +200,8 @@ def test_get_transmon_pdiag():
     #             write_ttraces=True)
 
     # Plot the results of the traces
-    ppt.plot_phase_traces(tpts, adata, nkappas, drvs, kappa)
-    # ppt.plot_phase_ss(adata, nkappas)
+    # ppt.plot_phase_traces(tpts, adata, nkappas, drvs, kappa)
+    ppt.plot_phase_ss(adata_g, tpts, nkappas)
 
     ## Run again with |01> state
     # tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi_e0, g)
