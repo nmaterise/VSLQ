@@ -38,31 +38,8 @@ class transmon_disp(base_cqed):
         self.set_cops([self.gamma1, self.kappa], [self.at, self.ac])
         self.set_init_state(psi0)
         self.set_H()
-
     
-    def __del__(self):
-        """
-        Class destructor
-        """
-        pass
 
-
-    @staticmethod
-    def get_cy_window_dict(t0, sig, w, beta, A=1, ph=0, dc=0):
-        """
-        Computes the windowed sine function with start and stop
-        times t1, t2, at frequency w and rise time of the window
-        set by beta. The amplitude of the signal is set by A, and
-        the phase and dc offset are ph and dc
-        """
-
-        # Arguments dictionary
-        args = {'w'  : w,  'a'  : beta, 'A'  : A, 't0' : t0,
-                'sig' : sig, 'dc' : dc,   'ph' : ph}
-
-        return args
-
-    
     def set_ops(self):
         """
         Set the operators needed to construct the Hamiltonian and
@@ -158,13 +135,6 @@ class transmon_long(base_cqed):
         self.set_init_state(psi0)
         self.set_H()
     
-
-    def __del__(self):
-        """
-        Class destructor
-        """
-        pass
-
 
     def set_ops(self):
         """

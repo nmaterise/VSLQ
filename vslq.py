@@ -9,8 +9,9 @@ Created: 180921
 
 import numpy as np
 import qutip as qt
+from qubit_cavity import base_cqed
 
-class vslq:
+class vslq(base_cqed):
     """
     Very Small Logical Qubit (VSLQ) Class
     
@@ -19,29 +20,36 @@ class vslq:
 
     """
 
-    def __init__(self, Ns, Np):
+    def __init__(self, Ns, Np, W, d, Om, gammap, gammas, readout_type='disp'):
         """
         Constructor for the class
 
         Parameters:
         ----------
 
-        Ns:     number of levels in the shadow resonators
-        Np:     number of levels in the primary qubits
+        Ns:             number of levels in the shadow resonators
+        Np:             number of levels in the primary qubits
+        W:              primary qubit energy
+        d:              anharmonicity of the primary qubits
+        Om:             primary-shadow qubit interaction strength
+        gammap/s:       loss rate for the primary / shadow qubits
+        readout_type:   'disp' / 'long' readout types for dispersive and
+                        'longitudinal' interactions
     
         """
 
         # Set the class members here
-        self.Ns = Ns; self.Np = Np;
+        # self.Ns = Ns; self.Np = Np;
+        base_cqed.__init__(self, Ns=Ns, Np=Np, W=W, d=d, Om=Om,
+                gammap=gammap, gammas=gammas)
 
         # Set the states and the operators for the class
         self.set_states()
         self.set_ops()
-
-
-    def __del__(self):
-        pass
-    
+        self.set_cops([self.gammas, self.gammas, self.gammap, self.gammap],
+                      [self.asl, self.asr, self.apl, self.apr])
+        self.set_H()
+        self.set_init_state()
 
     def set_states(self):
         """
@@ -64,9 +72,19 @@ class vslq:
         self.L0 = qt.ket2dm((s2 + s0).unit())
         self.L1 = qt.ket2dm((s2 - s1).unit())
 
-        # Initial density matrix
-        # psi0 = |L0> x |L0> x |0s> x | 0s>
-        self.psi0 = qt.tensor(self.L0, self.L0, self.ss0dm, self.ss0dm)
+
+    def set_init_state(self, psi0=None):
+        """
+        Set the initial state
+        """
+    
+        # Initialize to a 0-logical state in the primary and shadow lattice
+        if psi0 is None:
+            # Initial density matrix
+            # psi0 = |L0> x |L0> x |0s> x | 0s>
+            self.psi0 = qt.tensor(self.L0, self.L0, self.ss0dm, self.ss0dm)
+        else:
+            self.psi0 = psi0
 
 
     def set_ops(self):
@@ -99,48 +117,33 @@ class vslq:
         self.Xr = (self.apr**2 + self.apr.dag()**2) / np.sqrt(2)
 
 
-    def set_H(self, W, d, Om):
+    def set_H(self):
         """
         Compute the Hamiltonian in the rotating frame of the primary qubits
         """
         
         # Hp = -W Xl Xr + 1/2 d (Pl1 + Pr1)
-        Hp = -W * self.Xl*self.Xr + 0.5*d*(self.Pl1 + self.Pr1)
+        Hp = -self.W * self.Xl*self.Xr + 0.5*self.d*(self.Pl1 + self.Pr1)
         
         # Hs = (W + d/2) (asl^t asl + asr^t asr)
-        Hs = (W + d/2.) * (self.asl.dag()*self.asl + self.asr.dag()*self.asr)
+        Hs = (self.W + self.d/2.) * (self.asl.dag()*self.asl \
+                + self.asr.dag()*self.asr)
 
         # Hps = O (apl^t asl^t + apr^t asr^t + h.c.)
-        Hps = Om*(self.apl.dag()*self.asl.dag() + self.apr.dag()*self.asr.dag())
+        Hps = self.Om*(self.apl.dag()*self.asl.dag() \
+                + self.apr.dag()*self.asr.dag())
         Hps += Hps.dag()
+        
+        # Time independent Hamiltonian is sum of all contributions
+        H0 = Hp + Hs + Hps
 
-        self.H = Hp + Hs + Hps
+        # Set the drive Hamiltonian
+        Hc = [(self.asl + self.asl.dag()), (self.asr + self.asr.dag())]
 
+        # Use a Gaussian pulse for now
+        Hc_str = 'A * exp(-(t - t0)**2/(2*sig**2))*cos(w*t-ph) + dc'
 
-    def set_cops(self, gammap, gammas):
-        """
-        Set the collapse operators list using the relaxation rates for the
-        primary and shadow lattice
-        """
-    
-        self.cops = [np.sqrt(gammap) * self.apl, np.sqrt(gammap) * self.apr,
-                    np.sqrt(gammas) * self.asl, np.sqrt(gammas) * self.asr]
-
-
-    def run_dynamics(self, tpts, gammap, gammas):
-        """
-        Run the master equation dynamics for a given set of times, tpts
-        """
-
-        # Set the collapse operators
-        self.set_cops(gammap, gammas)
-
-        # Run the master equation solver and get the density matrix
-        psif = qt.mesolve(self.H, self.psi0, tpts, self.cops, [],
-                options=qt.Options(nsteps=1000))
-
-
-        return psif
+        self.H = [H0, [[Hc[0], Hc_str], [Hc[1], Hc_str]]]
 
 
     def get_logical_expect(self, psif):
