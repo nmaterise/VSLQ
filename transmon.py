@@ -7,29 +7,35 @@ import qutip as qt
 import numpy as np
 import post_proc_tools as ppt
 import matplotlib.pyplot as plt
+from qubit_cavity import base_cqed
 
 
-class transmon_disp:
+class transmon_disp(base_cqed):
     """
     Implements the cavity-transmon interaction in the dispersive regime
     """
 
-    def __init__(self, alpha, self_kerr, wq, Nq, Nc, psi0=None, g=1.+0*1j):
+    def __init__(self, alpha, self_kerr, wq,
+                 Nq, Nc, psi0=None, g=1.+0*1j,
+                 gamma1=0., kappa=0.1):
         """
         Class constructor
         """
 
         # Set the class members for the anharmonicity (alpha),
         # self-Kerr, and cross-Kerr (chi)
-        self.alpha = alpha; self.self_kerr = self_kerr;
-        self.Nq    = Nq;    self.Nc        = Nc;
-        self.chi   = np.sqrt(2 * self_kerr * alpha)
-        self.wq    = wq 
-        self.g     = g
-        
+        # self.alpha = alpha; self.self_kerr = self_kerr;
+        # self.Nq    = Nq;    self.Nc        = Nc;
+        # self.chi   = np.sqrt(2 * self_kerr * alpha)
+        # self.wq    = wq 
+        # self.g     = g
+        base_cqed.__init__(self, alpha=alpha, self_kerr=self_kerr, 
+                           wq=wq, Nq=Nq, Nc=Nc, psi0=psi0, g=g,
+                           gamma1=gamma1, kappa=kappa)    
+    
         # Initialize the collapse operators as None
-        self.cops  = None
         self.set_ops()
+        self.set_cops([self.gamma1, self.kappa], [self.at, self.ac])
         self.set_init_state(psi0)
         self.set_H()
 
@@ -76,11 +82,6 @@ class transmon_disp:
         """
         Sets the dispersive Hamiltonian for a transmon coupled to a cavity
         in the rotating frame of the cavity
-
-        *** Note ***
-        This function does not include the arguments for the string-based
-        Cython time-dependent Hamiltonian, Hc in self.H 
-
         """
 
         # Time independent Hamiltonian
@@ -112,32 +113,6 @@ class transmon_disp:
         self.psi0 = psi0 if (psi0 is not None) else psi_gnd
 
 
-    def set_cops(self, gamma1, kappa):
-        """
-        Set the collapse operators, assuming the system is shot noise limited,
-        e.g. T2 > T1 
-        """
-        # Use 1/T1 for the transmon and the line width of the cavity
-        self.cops = [np.sqrt(gamma1) * self.at,
-                     np.sqrt(kappa) * self.ac]
-
-
-    def run_dynamics(self, tpts, gamma1, kappa, args):
-        """
-        Run the master equation solver and return the results object
-        """
-
-        # Set the collapse operators if they are None
-        self.set_cops(gamma1, kappa)
-
-        # Run the dynamics and return the results object
-        psif = qt.mesolve(self.H, self.psi0, tpts,
-                          c_ops=self.cops, e_ops=[], args=args)
-
-        
-        return psif
-
-
     def get_a_expect(self, psif):
         """
         Compute the expectation value of the a operator for the cavity
@@ -145,7 +120,6 @@ class transmon_disp:
 
         # Compute the expectation value and return it
         a_expect = qt.expect(self.ac, psif.states)
-
 
         return a_expect
 
@@ -158,35 +132,33 @@ class transmon_disp:
         # Compute the expectation value and return it
         n_expect = qt.expect(self.at.dag()*self.at, psif.states)
 
-        
         return n_expect
 
 
-class transmon_long:
+class transmon_long(base_cqed):
     """
     Implements the cavity-transmon interaction in the longitudinal scheme 
     """
 
-    def __init__(self, alpha, self_kerr, wq, Nq, Nc, psi0=None, g=1.+0*1j):
+    def __init__(self, alpha, self_kerr,
+                 wq, Nq, Nc, psi0=None,
+                 g=1.+0*1j, gamma1=0, kappa=0.1):
         """
         Class constructor
         """
 
-        # Set the class members for the anharmonicity (alpha),
-        # self-Kerr, and cross-Kerr (chi)
-        self.alpha = alpha; self.self_kerr = self_kerr;
-        self.Nq    = Nq;    self.Nc        = Nc;
-        self.chi   = np.sqrt(2 * self_kerr * alpha)
-        self.wq    = wq 
-        self.g     = g
-        
+        # Initialize base class
+        base_cqed.__init__(self, alpha=alpha, self_kerr=self_kerr,
+                            wq=wq, Nq=Nq, Nc=Nc, psi0=psi0, g=g,
+                            gamma1=gamma1, kappa=kappa)
+
         # Initialize the collapse operators as None
-        self.cops  = None
         self.set_ops()
+        self.set_cops([self.gamma1, self.kappa], [self.at, self.ac])
         self.set_init_state(psi0)
         self.set_H()
-
     
+
     def __del__(self):
         """
         Class destructor
@@ -194,22 +166,6 @@ class transmon_long:
         pass
 
 
-    @staticmethod
-    def get_cy_window_dict(t0, sig, w, beta, A=1, ph=0, dc=0):
-        """
-        Computes the windowed sine function with start and stop
-        times t1, t2, at frequency w and rise time of the window
-        set by beta. The amplitude of the signal is set by A, and
-        the phase and dc offset are ph and dc
-        """
-
-        # Arguments dictionary
-        args = {'w'  : w,  'a'  : beta, 'A'  : A, 't0' : t0,
-                'sig' : sig, 'dc' : dc,   'ph' : ph}
-
-        return args
-
-    
     def set_ops(self):
         """
         Set the operators needed to construct the Hamiltonian and
@@ -227,22 +183,11 @@ class transmon_long:
 
     def set_H(self):
         """
-        Sets the dispersive Hamiltonian for a transmon coupled to a cavity
+        Sets the intraction Hamiltonian for a transmon coupled to a cavity
         in the rotating frame of the cavity
-
-        *** Note ***
-        This function does not include the arguments for the string-based
-        Cython time-dependent Hamiltonian, Hc in self.H 
-
         """
 
         # Time independent Hamiltonian
-        # H0 = self.wq*self.at.dag()*self.at - 0.5 * self.alpha * self.at**2 \
-        #      - self.chi * self.ac.dag()*self.ac * self.at.dag()*self.at
-        # H0 = - self.chi * self.ac.dag()*self.ac * self.at.dag()*self.at
-        
-        # Simply just g * (b^t a + b a^t)
-        # H0 = self.g * (self.at.dag()*self.ac + self.at*self.ac.dag())
         # From Didier et al. supplemental section
         H0 = (self.g*self.ac.dag() \
             + self.g.conjugate()*self.ac) * self.at.dag()*self.at
@@ -265,32 +210,6 @@ class transmon_long:
         self.psi0 = psi0 if (psi0 is not None) else psi_gnd
 
 
-    def set_cops(self, gamma1, kappa):
-        """
-        Set the collapse operators, assuming the system is shot noise limited,
-        e.g. T2 > T1 
-        """
-        # Use 1/T1 for the transmon and the line width of the cavity
-        self.cops = [np.sqrt(gamma1) * self.at,
-                     np.sqrt(kappa) * self.ac]
-
-
-    def run_dynamics(self, tpts, gamma1, kappa, args):
-        """
-        Run the master equation solver and return the results object
-        """
-
-        # Set the collapse operators if they are None
-        self.set_cops(gamma1, kappa)
-
-        # Run the dynamics and return the results object
-        psif = qt.mesolve(self.H, self.psi0, tpts,
-                          c_ops=self.cops, e_ops=[], args=args)
-
-        
-        return psif
-
-
     def get_a_expect(self, psif):
         """
         Compute the expectation value of the a operator for the cavity
@@ -313,7 +232,6 @@ class transmon_long:
 
         
         return n_expect
-
 
 
 def test_transmon():
@@ -344,7 +262,8 @@ def test_transmon():
     
     # Create an instance of the class
     my_tmon = transmon_disp(alpha, self_kerr, wq, Nq,
-                            Nc, psi00, g=np.exp(1j*2))
+                            Nc, psi00, g=np.exp(1j*2),
+                            gamma1=gamma1, kappa=kappa)
 
     # Set the time of the simulation in ns
     tpts = np.linspace(0, 10./kappa, 1001)
@@ -356,7 +275,7 @@ def test_transmon():
     args = my_tmon.get_cy_window_dict(t0, sig, w, beta) 
 
     # Run the mesolver
-    res = my_tmon.run_dynamics(tpts, gamma1, kappa, args)
+    res = my_tmon.run_dynamics(tpts, args)
     aavg = my_tmon.get_a_expect(res)
     # xvec, Wi = ppt.get_wigner(res.states[0])
     # xvec, Wf = ppt.get_wigner(res.states[-1])
@@ -375,6 +294,3 @@ if __name__ == '__main__':
     
     # Run the test function above
     test_transmon()
-
-
-

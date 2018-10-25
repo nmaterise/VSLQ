@@ -115,7 +115,7 @@ def plot_phase_traces(tpts, adata, nkappas, drvs, kappa, tscale='ns'):
     """
 
     # Setup the figure
-    fig, ax = plt.subplots(3, 1, figsize=(10, 8), tight_layout=True)
+    fig, ax = plt.subplots(3, 1, figsize=(8, 12), tight_layout=True)
     
     # Set the figure axes
     fsize = 24
