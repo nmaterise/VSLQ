@@ -115,7 +115,7 @@ def plot_phase_traces(tpts, adata, nkappas, drvs, kappa, tscale='ns'):
     """
 
     # Setup the figure
-    fig, ax = plt.subplots(3, 1, figsize=(8, 8))
+    fig, ax = plt.subplots(3, 1, figsize=(10, 8), tight_layout=True)
     
     # Set the figure axes
     fsize = 24
@@ -136,7 +136,7 @@ def plot_phase_traces(tpts, adata, nkappas, drvs, kappa, tscale='ns'):
     ax[0].set_ylabel(r'$\Re\{\hat{a}\}$', fontsize=fsize)
     ax[1].set_ylabel(r'$\Im\{\hat{a}\}$', fontsize=fsize)
     ax[2].set_xlabel(r'Time (1/$\kappa$)', fontsize=fsize)
-    ax[2].set_ylabel(r'Drive Amplitude ($g_x$)', fontsize=fsize)
+    ax[2].set_ylabel(r'Drive Ampl ($g_x$)', fontsize=fsize)
     
     # Get and set the legends
     hdls2, legs2 = ax[2].get_legend_handles_labels()
@@ -152,13 +152,13 @@ def plot_phase_traces(tpts, adata, nkappas, drvs, kappa, tscale='ns'):
     fig.savefig('figs/traces_phase_diagram_%s.png' % tstamp, format='png')
 
 
-def plot_phase_ss(adata, tpts, nkappas):
+def plot_phase_ss(adata, tpts, nkappas, fext=''):
     """
     Plots the steady state values of <a>(t) in a quadrature plot
     """
 
     # Setup the figure
-    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+    fig, ax = plt.subplots(1, 1, figsize=(8, 6), tight_layout=True)
     
     # Set the figure axes
     fsize = 24
@@ -182,14 +182,13 @@ def plot_phase_ss(adata, tpts, nkappas):
     hdls, legs = ax.get_legend_handles_labels()
     ax.legend(hdls, legs, loc='best')
     
-
-    # Fix the layout
-    plt.tight_layout()
     
     # Save the result to file
     tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
-    fig.savefig('figs/ss_phase_diagram_%s.eps' % tstamp, format='eps')
-    fig.savefig('figs/ss_phase_diagram_%s.png' % tstamp, format='png')
+    fig.savefig('figs/%s_ss_phase_diagram_%s.eps' % (fext, tstamp),
+            format='eps')
+    fig.savefig('figs/%s_ss_phase_diagram_%s.png' % (fext, tstamp),
+            format='png')
 
 
 def plot_phase_diagram(ag0, ae0, kappa):

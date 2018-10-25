@@ -7,7 +7,7 @@ as projected on the cavity state
 
 import numpy as np
 import qutip as qt
-from transmon import transmon_disp
+from transmon import transmon_disp, transmon_long
 import post_proc_tools as ppt
 import datetime
 
@@ -190,18 +190,31 @@ def test_get_transmon_pdiag():
 
     ## Run once with the |00> state
     print('Running simulation with g = %g MHz ...\n\n' % (g/1e-3))
-    tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi_g0, g=g*np.exp(1j))
+    tmon = transmon_long(alpha, self_kerr, wq, Nq, Nc,
+            psi_g0, g=g)#*np.exp(1j*np.pi/4))
     adata_g, _ = get_transmon_pdiag(tmon, tpts, kappa, nkappas,
-                gamma1, fext='0g', write_ttraces=True, g=g)
+                 gamma1, fext='0g', write_ttraces=True, g=g)
+    tmon = transmon_long(alpha, self_kerr, wq, Nq, Nc,
+            psi_e0, g=g) #*np.exp(1j*np.pi/4))
+    adata_e, _ = get_transmon_pdiag(tmon, tpts, kappa, nkappas,
+                gamma1, fext='0e', write_ttraces=True, g=g)
 
-    # tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi_e0, g)
-    # adata, _ = get_transmon_pdiag(tmon, tpts, kappa, nkappas,
+    # tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc,
+    #         psi_g0, g=g)#*np.exp(1j*np.pi/4))
+    # adata_g, _ = get_transmon_pdiag(tmon, tpts, kappa, nkappas,
+    #             gamma1, fext='0g', write_ttraces=True, g=g)
+
+    # tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi_e0,
+    #         g=g*np.exp(1j*np.pi/4))
+    # adata_e, _ = get_transmon_pdiag(tmon, tpts, kappa, nkappas,
     #             gamma1, fext='0e',
-    #             write_ttraces=True)
+    #             write_ttraces=True, g=g)
 
     # Plot the results of the traces
-    # ppt.plot_phase_traces(tpts, adata, nkappas, drvs, kappa)
+    ppt.plot_phase_traces(tpts, adata_g, nkappas, drvs, kappa)
     ppt.plot_phase_ss(adata_g, tpts, nkappas)
+    ppt.plot_phase_traces(tpts, adata_e, nkappas, drvs, kappa)
+    ppt.plot_phase_ss(adata_e, tpts, nkappas)
 
     ## Run again with |01> state
     # tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi_e0, g)

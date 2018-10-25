@@ -162,6 +162,160 @@ class transmon_disp:
         return n_expect
 
 
+class transmon_long:
+    """
+    Implements the cavity-transmon interaction in the longitudinal scheme 
+    """
+
+    def __init__(self, alpha, self_kerr, wq, Nq, Nc, psi0=None, g=1.+0*1j):
+        """
+        Class constructor
+        """
+
+        # Set the class members for the anharmonicity (alpha),
+        # self-Kerr, and cross-Kerr (chi)
+        self.alpha = alpha; self.self_kerr = self_kerr;
+        self.Nq    = Nq;    self.Nc        = Nc;
+        self.chi   = np.sqrt(2 * self_kerr * alpha)
+        self.wq    = wq 
+        self.g     = g
+        
+        # Initialize the collapse operators as None
+        self.cops  = None
+        self.set_ops()
+        self.set_init_state(psi0)
+        self.set_H()
+
+    
+    def __del__(self):
+        """
+        Class destructor
+        """
+        pass
+
+
+    @staticmethod
+    def get_cy_window_dict(t0, sig, w, beta, A=1, ph=0, dc=0):
+        """
+        Computes the windowed sine function with start and stop
+        times t1, t2, at frequency w and rise time of the window
+        set by beta. The amplitude of the signal is set by A, and
+        the phase and dc offset are ph and dc
+        """
+
+        # Arguments dictionary
+        args = {'w'  : w,  'a'  : beta, 'A'  : A, 't0' : t0,
+                'sig' : sig, 'dc' : dc,   'ph' : ph}
+
+        return args
+
+    
+    def set_ops(self):
+        """
+        Set the operators needed to construct the Hamiltonian and
+        compute expectation values
+        """
+
+        # Set the transmon operators
+        at0 = qt.destroy(self.Nq)
+        self.at = qt.tensor(at0, qt.qeye(self.Nc))
+
+        # Set the cavity operators
+        ac0 = qt.destroy(self.Nc)
+        self.ac = qt.tensor(qt.qeye(self.Nq), ac0)
+        
+
+    def set_H(self):
+        """
+        Sets the dispersive Hamiltonian for a transmon coupled to a cavity
+        in the rotating frame of the cavity
+
+        *** Note ***
+        This function does not include the arguments for the string-based
+        Cython time-dependent Hamiltonian, Hc in self.H 
+
+        """
+
+        # Time independent Hamiltonian
+        # H0 = self.wq*self.at.dag()*self.at - 0.5 * self.alpha * self.at**2 \
+        #      - self.chi * self.ac.dag()*self.ac * self.at.dag()*self.at
+        # H0 = - self.chi * self.ac.dag()*self.ac * self.at.dag()*self.at
+        
+        # Simply just g * (b^t a + b a^t)
+        # H0 = self.g * (self.at.dag()*self.ac + self.at*self.ac.dag())
+        # From Didier et al. supplemental section
+        H0 = (self.g*self.ac.dag() \
+            + self.g.conjugate()*self.ac) * self.at.dag()*self.at
+
+        # Time dependent readout Hamiltonian
+        Hc = (self.ac + self.ac.dag())
+        Hc_str = 'A * exp(-(t - t0)**2/(2*sig**2))*cos(w*t-ph) + dc'
+
+        self.H = [H0, [Hc, Hc_str]]
+
+
+    def set_init_state(self, psi0=None):
+        """
+        Sets the initial state of the system, if None set to the ground state of
+        the qubits and the cavity
+        """
+
+        # Set the state psi0
+        psi_gnd = qt.tensor(qt.basis(self.Nq, 0), qt.basis(self.Nc, 0))
+        self.psi0 = psi0 if (psi0 is not None) else psi_gnd
+
+
+    def set_cops(self, gamma1, kappa):
+        """
+        Set the collapse operators, assuming the system is shot noise limited,
+        e.g. T2 > T1 
+        """
+        # Use 1/T1 for the transmon and the line width of the cavity
+        self.cops = [np.sqrt(gamma1) * self.at,
+                     np.sqrt(kappa) * self.ac]
+
+
+    def run_dynamics(self, tpts, gamma1, kappa, args):
+        """
+        Run the master equation solver and return the results object
+        """
+
+        # Set the collapse operators if they are None
+        self.set_cops(gamma1, kappa)
+
+        # Run the dynamics and return the results object
+        psif = qt.mesolve(self.H, self.psi0, tpts,
+                          c_ops=self.cops, e_ops=[], args=args)
+
+        
+        return psif
+
+
+    def get_a_expect(self, psif):
+        """
+        Compute the expectation value of the a operator for the cavity
+        """
+
+        # Compute the expectation value and return it
+        a_expect = qt.expect(self.ac, psif.states)
+
+
+        return a_expect
+
+
+    def get_n_expect(self, psif):
+        """
+        Compute the expectation value of the number operator for the transmon
+        """
+
+        # Compute the expectation value and return it
+        n_expect = qt.expect(self.at.dag()*self.at, psif.states)
+
+        
+        return n_expect
+
+
+
 def test_transmon():
     """
     Testing function for the above class using a simple example
