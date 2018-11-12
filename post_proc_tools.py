@@ -39,6 +39,49 @@ def get_wigner(psi, file_ext=None):
     return xvec, W
 
 
+def get_expect(op, rho, man_tr=False):
+    """
+    Manually computes the expectation value of an operator
+    given the density matrix, rho
+    """
+    
+    # Compute the trace by qutip or manually
+    if man_tr:
+    
+        print('Computing expectation values with manual trace ...')
+
+        # Compute the new matrix-matrix product
+        if (op.__class__ == qt.Qobj) and (rho.__class__ == qt.Qobj):
+            
+            A = op * rho
+            return np.trace(A.data.todense())
+
+        # Handle the vector output of rho
+        elif ((rho.__class__ == np.ndarray) or (rho.__class__ == list)):
+
+            print('Computing trace of list(rho) ...')
+            
+            return np.array([np.trace(op*rho[:,:,i]) \
+                    for i in range(rho.shape[-1]) ])
+
+    else:    
+    
+        # Compute the new matrix if qt.Qobjs
+        if (op.__class__ == qt.Qobj) and (rho.__class__ == qt.Qobj):
+
+            # Compute the expectation value with qutip
+            return qt.expect(op, rho)
+
+        elif ((rho.__class__ == np.ndarray) or (rho.__class__ == list)):
+
+            print('Computing trace of list(rho) ...')
+
+            # Compute the expectation value with qutip
+            return np.array([qt.expect(op, qt.Qobj(rho[:,:,i])) \
+                    for i in range(rho.shape[-1]) ])
+    
+
+
 def plot_wigner(xvec, W,
                 xstr=r'Re$[\alpha]$',
                 ystr=r'Im$[\alpha]$',

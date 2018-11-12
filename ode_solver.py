@@ -6,6 +6,9 @@ Solver for ODE's using Runge-Kutta 4 and other methods
 import numpy as np
 from scipy.interpolate import interp1d as interp
 import qutip as qt
+import post_proc_tools as ppt
+import matplotlib.pyplot as plt
+
 
 class rk4:
     """
@@ -34,7 +37,7 @@ class rk4:
         self.rho0 = rho0; self.tpts = tpts; self.dt = dt
 
 
-    def rhs(self, rho, t, **kwargs):
+    def rhs(self, rho, t):
         """
         Compute the right hand side of the ODE
         """
@@ -42,7 +45,7 @@ class rk4:
         pass
 
     
-    def solver(self, **kwargs):
+    def solver(self):
         """
         Run the RK4 algorithm with the prescribed right hand side function
         """
@@ -58,20 +61,30 @@ class rk4:
         # Get the time step as a register here
         h = self.dt
 
-        # Iterate over the time steps
-        for n in range(1, self.tpts.size):
-            
-            # Compute the standard kj values with function calls to rhs
-            k1 = h * self.rhs(rho[:,:,n-1], self.tpts[n-1], kwargs)
-            k2 = h * self.rhs(rho[:,:,n-1]+0.5*k1, self.tpts[n-1]+0.5*h, kwargs)
-            k3 = h * self.rhs(rho[:,:,n-1]+0.5*k2, self.tpts[n-1]+0.5*h, kwargs)
-            k4 = h * self.rhs(rho[:,:,n-1]+k3, self.tpts[n-1]+h, kwargs)
+        # Catch the exception
+        try:
 
-            # Store the updated value of rho
-            rho[:,:,n] = rho[:,:,n-1] + k1/6. + k2/3. + k3/3. + k4/6.
+            # Iterate over the time steps
+            print('Running solver() with %d time points ...' % (self.tpts.size))
+
+            for n in range(1, self.tpts.size):
+
+                # Compute the standard kj values with function calls to rhs
+                k1 = h * self.rhs(rho[:,:,n-1], self.tpts[n-1])
+                k2 = h * self.rhs(rho[:,:,n-1]+0.5*k1, self.tpts[n-1]+0.5*h)
+                k3 = h * self.rhs(rho[:,:,n-1]+0.5*k2, self.tpts[n-1]+0.5*h)
+                k4 = h * self.rhs(rho[:,:,n-1]+k3, self.tpts[n-1]+h)
+                
+                # Store the updated value of rho
+                rho[:,:,n] = rho[:,:,n-1] + k1/6. + k2/3. + k3/3. + k4/6.
+
+        except ValueError as err:
+            print('Failed on time step ({:6.4f})\nError message: {}'\
+                .format(self.tpts[n-1], err))
 
         
         return rho
+
 
 
 class mesolve_rk4(rk4):
@@ -99,20 +112,16 @@ class mesolve_rk4(rk4):
 
         # Call the rk4 constructor to start
         rk4.__init__(self, rho0, tpts, dt, H=H, cops=cops)
-        print('self.cops: {}'.format(self.cops))
 
 
-    def rhs(self, rho, t, H=[], cops=[]):
+    def rhs(self, rho, t):
         """
         Implement the right hand side of the Lindblad master equation
         """        
         
         # # Readoff H and cops
-        # H = self.H
-        # cops = self.cops
-        print('rhs:')
-        print('H: {}'.format(H))
-        print('cops: {}'.format(cops))
+        H = self.H
+        cops = self.cops
 
         # Define the commutator and anti commutator
         comm  = lambda a, b : a*b - b*a
@@ -125,7 +134,6 @@ class mesolve_rk4(rk4):
         ## -i/hbar [H, rho] + sum_j D[a_j] rho
         ## Start with the case where H is just a qt.Qobj
         if H.__class__ == qt.qobj.Qobj:
-            print('Time independent Hamiltonian')
             Hcommrho = -1j * comm(H, qt.Qobj(rho))
 
         ## Handle the list case, e.g. with time dependence as a numpy array
@@ -133,16 +141,14 @@ class mesolve_rk4(rk4):
         ## [H0, [H1, e1(t)], [H2, e2(t)], ...]
         elif H.__class__ == list:
             ## Extract the time-independent Hamiltonian terms
-            print('Time dependent Hamiltonian')
             H0 = H[0]
             Hcommrho = comm(H0, qt.Qobj(rho))
 
             ## Readoff the remaining time-dependent Hamiltonian terms
-            Hcommrho += np.sum([Hd(t)*Hk for Hk, Hd in H[1:]])            
+            Hcommrho += np.sum([Hd(t)*Hk for Hk, Hd in H[1:][0]])            
             Hcommrho *= -1j
 
         ## Compute the dissipator terms
-        print('cops: {}'.format(cops))
         Dterms = np.sum([D(C, rho) for C in cops])
 
         ## Return the result as a dense matrix
@@ -158,7 +164,7 @@ class mesolve_rk4(rk4):
 
         # Handle the simple, time-independent case
         if self.H.__class__ == qt.qobj.Qobj:
-            rho_out = self.solver(H=self.H, cops=self.cops)
+            rho_out = self.solver()
 
             return rho_out
         
@@ -169,8 +175,12 @@ class mesolve_rk4(rk4):
             drvs = [interp(self.tpts, self.H[1:][0][1])]
             HH = [self.H[0], [[Hk, d] for Hk, d in zip(self.H[1:][0], drvs)]]
 
+            # Set the class instance of the Hamiltonian to the 
+            # list comprehension with the interpolants embedded
+            self.H = HH
+
             # Call the solver with the interpolated drives
-            rho_out = self.solver(H=self.H, cops=self.cops)
+            rho_out = self.solver()
 
             return rho_out
 
@@ -185,14 +195,16 @@ def test_mesolve():
     """
 
     # Setup a basic cavity system
-    Nc = 16;
+    Nc = 2;
     a = qt.destroy(Nc)
     wc = 5;
     kappa = 0.1
-    tpts = np.linspace(0, 10/kappa, 3001)
+    dt =(1./kappa) / 1e2
+    tpts = np.linspace(0, 10/kappa, int(np.round((10/kappa)/dt)+1))
+    tpts_d = np.linspace(0, 10/kappa, 4*tpts.size)
 
     # Time independent Hamiltonian
-    H0 = wc * a.dag()*a
+    H0 = wc*a.dag()*a
     
     # Time dependent Hamiltonian
     Hc = (a + a.dag())
@@ -204,14 +216,26 @@ def test_mesolve():
     rho0 = qt.ket2dm(qt.basis(Nc, 0))
 
     # Setup the master equation solver instance
-    me_rk4 = mesolve_rk4(rho0, tpts, (tpts.max()-tpts.min())/4., H, cops) 
+    me_rk4 = mesolve_rk4(rho0, tpts, 4*tpts.max()/tpts.size, H, cops) 
     rho_out = me_rk4.mesolve()
+    
+    print('rho_out.shape: {}'.format(rho_out.shape))
+    print('tpts.size: %d' % (tpts.size))
+    print('rho_out.__class__: {}'.format(rho_out.__class__))
+
+    # Compute the expectation value of a^t a
+    a_avg = ppt.get_expect(a, rho_out, man_tr=True)
+    print('a_avg.shape: {}'.format(a_avg.shape))
+
+
+    # Plot the results
+    plt.plot(tpts, a_avg.real, label=r'$\Re \langle a\rangle$')
+    plt.plot(tpts, a_avg.imag, label=r'$\Im \langle a\rangle$')
+    plt.legend(loc='best')
+    
 
 
 if __name__ == '__main__':
     
     # Run the test example above for a single cavity driven by an applied field
     test_mesolve()
-
-
-
