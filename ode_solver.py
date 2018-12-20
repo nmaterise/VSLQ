@@ -51,12 +51,14 @@ class rk4:
         """
 
         # Initialize the output
-        rho = np.zeros([self.rho0.shape[0], self.rho0.shape[1],
-                        self.tpts.size],
-                        dtype=self.rho0.data.todense().dtype)
+        # rho = np.zeros([self.rho0.shape[0], self.rho0.shape[1],
+        #                 self.tpts.size],
+        #                 dtype=self.rho0.data.todense().dtype)
+
+        rho = [self.rho0] * self.tpts.size
 
         # Set rho[t=0] = rho0
-        rho[:,:,0] = self.rho0.data.todense()
+        # rho[:,:,0] = self.rho0.data.todense()
         
         # Get the time step as a register here
         h = self.dt
@@ -70,13 +72,13 @@ class rk4:
             for n in range(1, self.tpts.size):
 
                 # Compute the standard kj values with function calls to rhs
-                k1 = h * self.rhs(rho[:,:,n-1], self.tpts[n-1])
-                k2 = h * self.rhs(rho[:,:,n-1]+0.5*k1, self.tpts[n-1]+0.5*h)
-                k3 = h * self.rhs(rho[:,:,n-1]+0.5*k2, self.tpts[n-1]+0.5*h)
-                k4 = h * self.rhs(rho[:,:,n-1]+k3, self.tpts[n-1]+h)
+                k1 = h * self.rhs(rho[n-1], self.tpts[n-1])
+                k2 = h * self.rhs(rho[n-1]+0.5*k1, self.tpts[n-1]+0.5*h)
+                k3 = h * self.rhs(rho[n-1]+0.5*k2, self.tpts[n-1]+0.5*h)
+                k4 = h * self.rhs(rho[n-1]+k3, self.tpts[n-1]+h)
                 
                 # Store the updated value of rho
-                rho[:,:,n] = rho[:,:,n-1] + k1/6. + k2/3. + k3/3. + k4/6.
+                rho[n] = rho[n-1] + k1/6. + k2/3. + k3/3. + k4/6.
 
         except ValueError as err:
             print('Failed on time step ({:6.4f})\nError message: {}'\
@@ -140,6 +142,7 @@ class mesolve_rk4(rk4):
         ## specifying the drive Hamiltonian in the same format as qutip, e.g.
         ## [H0, [H1, e1(t)], [H2, e2(t)], ...]
         elif H.__class__ == list:
+
             ## Extract the time-independent Hamiltonian terms
             H0 = H[0]
             Hcommrho = comm(H0, qt.Qobj(rho))
@@ -152,7 +155,8 @@ class mesolve_rk4(rk4):
         Dterms = np.sum([D(C, rho) for C in cops])
 
         ## Return the result as a dense matrix
-        rhs_data = (Hcommrho + Dterms).data.todense()
+        # rhs_data = (Hcommrho + Dterms).data.todense()
+        rhs_data = (Hcommrho + Dterms)
 
         return rhs_data
     
@@ -196,7 +200,9 @@ def test_mesolve():
 
     # Setup a basic cavity system
     Nc = 2;
-    a = qt.destroy(Nc)
+    Nq = 3;
+    a = qt.tensor(qt.qeye(Nq), qt.destroy(Nc))
+    b = qt.tensor(qt.destroy(Nq), qt.qeye(Nc))
     wc = 5;
     kappa = 0.1
     dt =(1./kappa) / 1e2
@@ -213,7 +219,8 @@ def test_mesolve():
     # Form the total Hamiltonian and set the collapse operators
     H = [H0, [Hc, Hd]]
     cops = [1./kappa * a]
-    rho0 = qt.ket2dm(qt.basis(Nc, 0))
+    # rho0 = qt.ket2dm(qt.basis(Nc, 0))
+    rho0 = qt.ket2dm(qt.tensor(qt.basis(Nq, 0), qt.basis(Nc, 0)))
 
     # Setup the master equation solver instance
     me_rk4 = mesolve_rk4(rho0, tpts, 4*tpts.max()/tpts.size, H, cops) 
