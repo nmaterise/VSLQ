@@ -17,7 +17,7 @@ class transmon_disp(base_cqed):
 
     def __init__(self, alpha, self_kerr, wq,
                  Nq, Nc, psi0=None, g=1.+0*1j,
-                 gamma1=0., kappa=0.1):
+                 gamma1=0., kappa=0.1, wc=1.):
         """
         Class constructor
         """
@@ -31,7 +31,8 @@ class transmon_disp(base_cqed):
         # self.g     = g
         base_cqed.__init__(self, alpha=alpha, self_kerr=self_kerr, 
                            wq=wq, Nq=Nq, Nc=Nc, psi0=psi0, g=g,
-                           gamma1=gamma1, kappa=kappa)    
+                           gamma1=gamma1, kappa=kappa,
+                           chi=np.sqrt(2 * self_kerr * alpha), wc=wc)
     
         # Initialize the collapse operators as None
         self.set_ops()
@@ -62,15 +63,16 @@ class transmon_disp(base_cqed):
         """
 
         # Time independent Hamiltonian
-        # H0 = self.wq*self.at.dag()*self.at - 0.5 * self.alpha * self.at**2 \
-        #      - self.chi * self.ac.dag()*self.ac * self.at.dag()*self.at
+        # From Didier et al. supplemental section
+        H0 = self.wq*self.at.dag()*self.at + self.wc*self.ac.dag()*self.ac\
+             + self.chi * self.ac.dag()*self.ac * self.at.dag()*self.at
         # H0 = - self.chi * self.ac.dag()*self.ac * self.at.dag()*self.at
         
         # Simply just g * (b^t a + b a^t)
         # H0 = self.g * (self.at.dag()*self.ac + self.at*self.ac.dag())
         # From Didier et al. supplemental section
-        H0 = self.g*self.ac.dag()*self.at \
-            + self.g.conjugate()*self.ac*self.at.dag()
+        # H0 = self.g*self.ac.dag()*self.at \
+        #     + self.g.conjugate()*self.ac*self.at.dag()
 
         # Time dependent readout Hamiltonian
         Hc = (self.ac + self.ac.dag())

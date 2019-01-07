@@ -36,6 +36,15 @@ class rk4:
         # Store the initial values
         self.rho0 = rho0; self.tpts = tpts; self.dt = dt
 
+    @staticmethod
+    def dagger(a):
+        """
+        Compute the comple conjugate transpose of an operator from its matrix
+        representation
+        """
+
+        return np.transpose(np.conjugate(a))
+
 
     def rhs(self, rho, t):
         """
@@ -83,10 +92,8 @@ class rk4:
         except ValueError as err:
             print('Failed on time step ({:6.4f})\nError message: {}'\
                 .format(self.tpts[n-1], err))
-
         
         return rho
-
 
 
 class mesolve_rk4(rk4):
@@ -109,7 +116,6 @@ class mesolve_rk4(rk4):
         cops:       collapse operators including the coefficients as a list
                     of qt.Obj's scaled by the damping coefficients
 
-
         """
 
         # Call the rk4 constructor to start
@@ -121,27 +127,38 @@ class mesolve_rk4(rk4):
         Implement the right hand side of the Lindblad master equation
         """        
         
-        # # Readoff H and cops
+        # Readoff H and cops
         H = self.H
         cops = self.cops
 
         # Define the commutator and anti commutator
-        comm  = lambda a, b : a*b - b*a
-        acomm = lambda a, b : a*b + b*a
+        ## Use the overloaded operator multiplication with Qobjs
+        if rho.__class__ == qt.qobj.Qobj:
+            comm  = lambda a, b : a*b - b*a
+            acomm = lambda a, b : a*b + b*a
+        ## Use the matrix multiplication operator in Python 3
+        elif rho.__class__ == np.ndarray:
+            comm  = lambda a, b : a@b - b@a
+            acomm = lambda a, b : a@b + b@a
 
         # Define the dissipator superoperator, D
-        D = lambda a, p : a*p*a.dag() - 0.5*acomm(a.dag()*a, p)
+        ## Use the overloaded operator multiplication with Qobjs
+        if rho.__class__ == qt.qobj.Qobj:
+            D = lambda a, p : a*p*a.dag() - 0.5*acomm(a.dag()*a, p)
+        ## Use the matrix multiplication operator in Python 3
+        elif rho.__class__ == np.ndarray:
+            D = lambda a, p : a@p@dagger(a) - 0.5*acomm(dagger(a)@a, p)
 
         # Compute the commutator and the dissipator terms, with hbar = 1
         ## -i/hbar [H, rho] + sum_j D[a_j] rho
         ## Start with the case where H is just a qt.Qobj
-        if H.__class__ == qt.qobj.Qobj:
+        if H.__class__ == qt.qobj.Qobj and H.__class__ == np.ndarray:
             Hcommrho = -1j * comm(H, qt.Qobj(rho))
 
         ## Handle the list case, e.g. with time dependence as a numpy array
         ## specifying the drive Hamiltonian in the same format as qutip, e.g.
         ## [H0, [H1, e1(t)], [H2, e2(t)], ...]
-        elif H.__class__ == list:
+        elif H.__class__ == list and rho.__class == qt.qobj.Qobj:
 
             ## Extract the time-independent Hamiltonian terms
             H0 = H[0]
@@ -151,12 +168,23 @@ class mesolve_rk4(rk4):
             Hcommrho += np.sum([Hd(t)*Hk for Hk, Hd in H[1:][0]])            
             Hcommrho *= -1j
 
+        ## Numpy array equivalent calculations of commutators
+        elif H.__class__ == list and rho.__class != qt.qobj.Qobj:
+
+            ## Extract the time-independent Hamiltonian terms
+            H0 = H[0]
+            Hcommrho = comm(H0, rho)
+
+            ## Readoff the remaining time-dependent Hamiltonian terms
+            Hcommrho += np.sum([Hd(t)@Hk for Hk, Hd in H[1:][0]])            
+            Hcommrho *= -1j
+
         ## Compute the dissipator terms
         Dterms = np.sum([D(C, rho) for C in cops])
 
         ## Return the result as a dense matrix
         # rhs_data = (Hcommrho + Dterms).data.todense()
-        rhs_data = (Hcommrho + Dterms)
+        rhs_data = Hcommrho + Dterms
 
         return rhs_data
     
@@ -167,8 +195,8 @@ class mesolve_rk4(rk4):
         """
 
         # Handle the simple, time-independent case
-        if self.H.__class__ == qt.qobj.Qobj:
-            rho_out = self.solver()
+        # if self.H.__class__ == qt.qobj.Qobj:
+        rho_out = self.solver()
 
             return rho_out
         
@@ -190,7 +218,6 @@ class mesolve_rk4(rk4):
 
         else:
             raise('H.__class__ ({}) not supported'.format(H.__class__))
-
 
 
 def test_mesolve():
@@ -234,13 +261,11 @@ def test_mesolve():
     a_avg = ppt.get_expect(a, rho_out, man_tr=True)
     print('a_avg.shape: {}'.format(a_avg.shape))
 
-
     # Plot the results
     plt.plot(tpts, a_avg.real, label=r'$\Re \langle a\rangle$')
     plt.plot(tpts, a_avg.imag, label=r'$\Im \langle a\rangle$')
     plt.legend(loc='best')
     
-
 
 if __name__ == '__main__':
     

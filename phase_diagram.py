@@ -150,7 +150,7 @@ def test_get_transmon_pdiag():
 
     # Compute the coupling factor g from chi = g^2 / delta
     # Use a delta of 2.5 GHz
-    wq = 5*2*np.pi; 
+    wq = 5*2*np.pi; wc = 6*2*np.pi;
     
     # Set the cavity linewidth and the transmon T1
     # T1 = 40 us, kappa = 125 kHz
@@ -182,24 +182,24 @@ def test_get_transmon_pdiag():
     sig = np.array([nk / (2*kappa) for nk in nkappas])
 
     # Drives used to generate the phase diagram
-    drvs = np.array([np.exp(-((tpts - t00)**2)/(2*sigg**2))\
+    drvs = np.array([np.sin(wc*tpts)*np.exp(-((tpts - t00)**2)/(2*sigg**2))\
             for t00, sigg in zip(t0, sig)])
 
     ## Run once with the |00> state
     print('Running simulation with g = %g MHz ...\n\n' % (g/1e-3))
-    tmon = transmon_long(alpha, self_kerr, wq, Nq, Nc,
-            psi_g0, g=g*1j, gamma1=gamma1, kappa=kappa)#*np.exp(1j*np.pi/4))
-    adata_g, _ = get_transmon_pdiag(tmon, tpts, kappa, nkappas,
-                 gamma1, fext='0g', write_ttraces=True, g=g)
-    tmon = transmon_long(alpha, self_kerr, wq, Nq, Nc,
-            psi_e0, g=g*1j, gamma1=gamma1, kappa=kappa) #*np.exp(1j*np.pi/4))
-    adata_e, _ = get_transmon_pdiag(tmon, tpts, kappa, nkappas,
-                gamma1, fext='0e', write_ttraces=True, g=g)
-
-    # tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc,
-    #         psi_g0, g=g*np.exp(1j*np.pi/4))
+    # tmon = transmon_long(alpha, self_kerr, wq, Nq, Nc,
+    #         psi_g0, g=g*1j, gamma1=gamma1, kappa=kappa)#*np.exp(1j*np.pi/4))
     # adata_g, _ = get_transmon_pdiag(tmon, tpts, kappa, nkappas,
-    #             gamma1, fext='0g', write_ttraces=True, g=g)
+    #              gamma1, fext='0g', write_ttraces=True, g=g)
+    # tmon = transmon_long(alpha, self_kerr, wq, Nq, Nc,
+    #         psi_e0, g=g*1j, gamma1=gamma1, kappa=kappa) #*np.exp(1j*np.pi/4))
+    # adata_e, _ = get_transmon_pdiag(tmon, tpts, kappa, nkappas,
+    #             gamma1, fext='0e', write_ttraces=True, g=g)
+
+    tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc,
+            psi_g0, g=g, wc=wc)
+    adata_g, _ = get_transmon_pdiag(tmon, tpts, kappa, nkappas,
+                gamma1, fext='0g', write_ttraces=True, g=g)
 
     # tmon = transmon_disp(alpha, self_kerr, wq, Nq, Nc, psi_e0,
     #         g=g*np.exp(1j*np.pi/4))
@@ -210,7 +210,7 @@ def test_get_transmon_pdiag():
     # Plot the results of the traces
     ppt.plot_phase_traces(tpts, adata_g, nkappas, drvs, kappa)
     # ppt.plot_phase_ss(adata_g, tpts, nkappas)
-    ppt.plot_phase_traces(tpts, adata_e, nkappas, drvs, kappa)
+    # ppt.plot_phase_traces(tpts, adata_e, nkappas, drvs, kappa)
     # ppt.plot_phase_ss(adata_e, tpts, nkappas)
 
     ## Run again with |01> state
@@ -228,6 +228,4 @@ if __name__ == '__main__':
 
     # Run the above test code
     test_get_transmon_pdiag()
-
-
 
