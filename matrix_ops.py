@@ -90,6 +90,26 @@ def tensor(*args):
     return aout
 
 
+def dag(a):
+    """
+    Returns the complex conjugate transpose of an operator
+    """
+
+    return np.transpose(np.conj(a))
+
+
+def ket2dm(psi):
+    """
+    Converts a ket state vector to a density matrix by computing the outer
+    product
+
+    p = | psi > < psi |
+
+    """
+
+    return np.outer(psi, dag(psi))
+
+
 def comm(a, b, sign='-'):
     """
     Implements the commutator / anticommutator for two matrices of equal size
@@ -114,11 +134,3 @@ def comm(a, b, sign='-'):
     # Return the 
     elif sign == '+':
         return a@b + b@a
-
-
-def dag(a):
-    """
-    Returns the complex conjugate transpose of an operator
-    """
-
-    return np.transpose(np.conj(a))

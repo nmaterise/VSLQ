@@ -8,7 +8,13 @@ from scipy.interpolate import interp1d as interp
 import qutip as qt
 import post_proc_tools as ppt
 import matplotlib.pyplot as plt
+import matrix_ops as mops
 
+# Use for catching errors
+import traceback
+
+# Set for the runtime warnings
+np.seterr(all='raise')
 
 class rk4:
     """
@@ -89,9 +95,11 @@ class rk4:
                 # Store the updated value of rho
                 rho[n] = rho[n-1] + k1/6. + k2/3. + k3/3. + k4/6.
 
-        except ValueError as err:
+        except Exception as err:
             print('Failed on time step ({:6.4f})\nError message: {}'\
                 .format(self.tpts[n-1], err))
+            print(traceback.format_exc())
+            # raise(Exception(locals()))
         
         return rho
 
@@ -147,7 +155,8 @@ class mesolve_rk4(rk4):
             D = lambda a, p : a*p*a.dag() - 0.5*acomm(a.dag()*a, p)
         ## Use the matrix multiplication operator in Python 3
         elif rho.__class__ == np.ndarray:
-            D = lambda a, p : a@p@dagger(a) - 0.5*acomm(dagger(a)@a, p)
+            D = lambda a, p : a@p@self.dagger(a) \
+                - 0.5*acomm(self.dagger(a)@a, p)
 
         # Compute the commutator and the dissipator terms, with hbar = 1
         ## -i/hbar [H, rho] + sum_j D[a_j] rho
@@ -158,7 +167,7 @@ class mesolve_rk4(rk4):
         ## Handle the list case, e.g. with time dependence as a numpy array
         ## specifying the drive Hamiltonian in the same format as qutip, e.g.
         ## [H0, [H1, e1(t)], [H2, e2(t)], ...]
-        elif H.__class__ == list and rho.__class == qt.qobj.Qobj:
+        elif H.__class__ == list and rho.__class__ == qt.qobj.Qobj:
 
             ## Extract the time-independent Hamiltonian terms
             H0 = H[0]
@@ -169,18 +178,18 @@ class mesolve_rk4(rk4):
             Hcommrho *= -1j
 
         ## Numpy array equivalent calculations of commutators
-        elif H.__class__ == list and rho.__class != qt.qobj.Qobj:
+        elif H.__class__ == list and rho.__class__ == np.ndarray:
 
             ## Extract the time-independent Hamiltonian terms
             H0 = H[0]
-            Hcommrho = comm(H0, rho)
+            Hcommrho = np.complex128(comm(H0, rho))
 
             ## Readoff the remaining time-dependent Hamiltonian terms
-            Hcommrho += np.sum([Hd(t)@Hk for Hk, Hd in H[1:][0]])            
+            Hcommrho += np.sum([Hd(t)*Hk for Hk, Hd in H[1:][0]])
             Hcommrho *= -1j
 
         ## Compute the dissipator terms
-        Dterms = np.sum([D(C, rho) for C in cops])
+        Dterms = np.sum([D(ck, rho) for ck in cops])
 
         ## Return the result as a dense matrix
         # rhs_data = (Hcommrho + Dterms).data.todense()
@@ -195,9 +204,8 @@ class mesolve_rk4(rk4):
         """
 
         # Handle the simple, time-independent case
-        # if self.H.__class__ == qt.qobj.Qobj:
-        rho_out = self.solver()
-
+        if self.H.__class__ == qt.qobj.Qobj:
+            rho_out = self.solver()
             return rho_out
         
         # Handle the case involving drive terms
@@ -234,7 +242,6 @@ def test_mesolve():
     kappa = 0.1
     dt =(1./kappa) / 1e2
     tpts = np.linspace(0, 10/kappa, int(np.round((10/kappa)/dt)+1))
-    tpts_d = np.linspace(0, 10/kappa, 4*tpts.size)
 
     # Time independent Hamiltonian
     H0 = wc*a.dag()*a
@@ -245,21 +252,15 @@ def test_mesolve():
 
     # Form the total Hamiltonian and set the collapse operators
     H = [H0, [Hc, Hd]]
-    cops = [1./kappa * a]
-    # rho0 = qt.ket2dm(qt.basis(Nc, 0))
+    cops = [kappa * a]
     rho0 = qt.ket2dm(qt.tensor(qt.basis(Nq, 0), qt.basis(Nc, 0)))
 
     # Setup the master equation solver instance
     me_rk4 = mesolve_rk4(rho0, tpts, 4*tpts.max()/tpts.size, H, cops) 
     rho_out = me_rk4.mesolve()
-    
-    print('rho_out.shape: {}'.format(rho_out.shape))
-    print('tpts.size: %d' % (tpts.size))
-    print('rho_out.__class__: {}'.format(rho_out.__class__))
 
     # Compute the expectation value of a^t a
     a_avg = ppt.get_expect(a, rho_out, man_tr=True)
-    print('a_avg.shape: {}'.format(a_avg.shape))
 
     # Plot the results
     plt.plot(tpts, a_avg.real, label=r'$\Re \langle a\rangle$')
@@ -267,7 +268,55 @@ def test_mesolve():
     plt.legend(loc='best')
     
 
+def test_mesolve_mops():
+    """
+    Tests the mesolve_rk4() class using the matrix_ops module
+    """
+
+    # Setup a basic cavity system
+    Nc = 3;
+    Nq = 2;
+    a = mops.tensor(np.eye(Nq), mops.aop(Nc))
+    sz = mops.tensor(mops.sop('z'), np.eye(Nc))
+    wc = 5; wq = 6;
+    kappa = 0.1; chi = kappa / 2.;
+    dt =(1./kappa) / 1e2
+    tpts = np.linspace(0, 10/kappa, int(np.round((10/kappa)/dt)+1))
+    # tpts_d = np.linspace(0, 10/kappa, 4*tpts.size)
+
+    # Time independent Hamiltonian
+    # H0 = wc*mops.dag(a)@a + wq*sz/2. + chi*mops.dag(a)@a@sz
+    # In rotating frame
+    H0 = chi*mops.dag(a)@a@sz
+    
+    # Time dependent Hamiltonian
+    Hc = (a + mops.dag(a))
+    # Hd = np.exp(-(tpts - tpts.max()/2)**2/(2*tpts.max()/6)**2) * np.sin(wc*tpts)
+    # In rotating frame
+    Hd = np.exp(-(tpts - tpts.max()/2)**2/(tpts.max()/6)**2)
+
+    # Form the total Hamiltonian and set the collapse operators
+    H = [H0, [Hc, Hd]]
+    cops = [np.sqrt(kappa) * a]
+    rho0 = mops.ket2dm(mops.tensor(mops.basis(Nq, 0), mops.basis(Nc, 0)))
+    print('rho0:\n{}'.format(rho0))
+    print('Time = [%g, %g] ns' % (tpts.min(), tpts.max()))
+
+    # Setup the master equation solver instance
+    me_rk4 = mesolve_rk4(rho0, tpts, tpts.max()/(10*tpts.size), H, cops) 
+    rho_out = me_rk4.mesolve()
+    
+    # Compute the expectation value of a^t a
+    a_avg = ppt.get_expect(a, rho_out, man_tr=True)
+
+    # Plot the results
+    plt.plot(tpts, a_avg.real, label=r'$\Re \langle a\rangle$')
+    plt.plot(tpts, a_avg.imag, label=r'$\Im \langle a\rangle$')
+    plt.legend(loc='best')
+
+
 if __name__ == '__main__':
     
     # Run the test example above for a single cavity driven by an applied field
-    test_mesolve()
+    # test_mesolve()
+    test_mesolve_mops()

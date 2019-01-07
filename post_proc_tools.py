@@ -60,9 +60,12 @@ def get_expect(op, rho, man_tr=False):
         elif ((rho.__class__ == np.ndarray) or (rho.__class__ == list)):
 
             print('Computing trace of list(rho) ...')
-            
-            return np.array([np.trace(op*rho[:,:,i]) \
-                    for i in range(rho.shape[-1]) ])
+        
+            # Convert the density matrix to a numpy array if needed
+            rho = np.asarray(rho)            
+
+            return np.array([np.trace(op*rho[i,:,:]) \
+                    for i in range(np.shape(rho)[0]) ])
 
     else:    
     
@@ -79,7 +82,6 @@ def get_expect(op, rho, man_tr=False):
             # Compute the expectation value with qutip
             return np.array([qt.expect(op, qt.Qobj(rho[:,:,i])) \
                     for i in range(rho.shape[-1]) ])
-    
 
 
 def plot_wigner(xvec, W,
