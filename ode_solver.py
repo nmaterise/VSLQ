@@ -274,10 +274,11 @@ def test_mesolve_mops():
     """
 
     # Setup a basic cavity system
-    Nc = 3;
-    Nq = 2;
+    Nc = 16;
+    Nq = 3;
     a = mops.tensor(np.eye(Nq), mops.aop(Nc))
-    sz = mops.tensor(mops.sop('z'), np.eye(Nc))
+    b = mops.aop(Nq); bd = mops.dag(b)
+    sz = mops.tensor(bd@b, np.eye(Nc))
     wc = 5; wq = 6;
     kappa = 0.1; chi = kappa / 2.;
     dt =(1./kappa) / 1e2
@@ -287,7 +288,7 @@ def test_mesolve_mops():
     # Time independent Hamiltonian
     # H0 = wc*mops.dag(a)@a + wq*sz/2. + chi*mops.dag(a)@a@sz
     # In rotating frame
-    H0 = chi*mops.dag(a)@a@sz
+    H0 = chi*mops.dag(a) @ a @ sz
     
     # Time dependent Hamiltonian
     Hc = (a + mops.dag(a))
@@ -305,13 +306,15 @@ def test_mesolve_mops():
     # Setup the master equation solver instance
     me_rk4 = mesolve_rk4(rho0, tpts, tpts.max()/(10*tpts.size), H, cops) 
     rho_out = me_rk4.mesolve()
-    
+
     # Compute the expectation value of a^t a
     a_avg = ppt.get_expect(a, rho_out, man_tr=True)
+    print('{}'.format(a_avg.real))
 
     # Plot the results
-    plt.plot(tpts, a_avg.real, label=r'$\Re \langle a\rangle$')
-    plt.plot(tpts, a_avg.imag, label=r'$\Im \langle a\rangle$')
+    plt.plot(kappa*tpts, a_avg.real,label=r'$\Re \langle a\rangle$')
+    plt.plot(kappa*tpts, a_avg.imag,label=r'$\Im \langle a\rangle$')
+    plt.xlabel(r'Time (1/$\kappa$)')
     plt.legend(loc='best')
 
 

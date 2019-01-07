@@ -53,7 +53,7 @@ def get_expect(op, rho, man_tr=False):
         # Compute the new matrix-matrix product
         if (op.__class__ == qt.Qobj) and (rho.__class__ == qt.Qobj):
             
-            A = op * rho
+            A = rho * op
             return np.trace(A.data.todense())
 
         # Handle the vector output of rho
@@ -64,7 +64,7 @@ def get_expect(op, rho, man_tr=False):
             # Convert the density matrix to a numpy array if needed
             rho = np.asarray(rho)            
 
-            return np.array([np.trace(op*rho[i,:,:]) \
+            return np.array([np.trace(rho[i,:,:] @ op) \
                     for i in range(np.shape(rho)[0]) ])
 
     else:    
