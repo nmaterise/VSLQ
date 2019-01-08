@@ -110,6 +110,18 @@ def ket2dm(psi):
     return np.outer(psi, dag(psi))
 
 
+def expect(op, rho):
+    """
+    Returns the expectation value of an operator given the density matrix, rho
+    """
+
+    # Convert the density matrix to a numpy array if needed
+    rho = np.asarray(rho)            
+
+    return np.array([np.trace(rho[i,:,:] @ op) \
+            for i in range(np.shape(rho)[0]) ])
+
+
 def comm(a, b, sign='-'):
     """
     Implements the commutator / anticommutator for two matrices of equal size

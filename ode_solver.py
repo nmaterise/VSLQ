@@ -308,7 +308,7 @@ def test_mesolve_mops():
     rho_out = me_rk4.mesolve()
 
     # Compute the expectation value of a^t a
-    a_avg = ppt.get_expect(a, rho_out, man_tr=True)
+    a_avg = ppt.get_expect(a, rho_out)
     print('{}'.format(a_avg.real))
 
     # Plot the results
