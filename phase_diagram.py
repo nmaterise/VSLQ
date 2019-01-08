@@ -7,8 +7,10 @@ as projected on the cavity state
 
 import numpy as np
 import qutip as qt
-from transmon import transmon_disp, transmon_long
+import multiprocessing as mp
+from transmon import transmon_disp, transmon_disp_mops, transmon_long
 import post_proc_tools as ppt
+import matrix_ops as mops
 import datetime
 
 
@@ -41,7 +43,6 @@ def get_transmon_pdiag(tmon, tpts, kappa, nkappas,
 
     # Compute the time spacing for the tpts
     dt = tpts.max() / tpts.size
-
 
     # Get the traces data
     if write_ttraces:
@@ -102,7 +103,6 @@ def parfor_update(tpts, tmon, nk, kappa):
     # Setup the transmon inputs
     t0 = 3*nk / (2*kappa)
     sig = nk / (2*kappa);
-    dt = tpts.max() / tpts.size
     
     print('Running measurement from %g to %g ns ...'%(t0-sig/2, t0+sig/2))
 
@@ -133,7 +133,138 @@ def parfor_update_traces(tpts, tmon, nk, kappa, g=None):
     aavg = tmon.get_a_expect(res)
 
     # Store the results
+    return aavg
+
+
+def get_transmon_pdiag_mops(tmon, tpts, kappa, nkappas,
+                       gamma1=0, fext='', write_ttraces=False, g=None):
+    """
+    Wraps the transmon_disp_mops class object to compute <a> with different drive
+    durations on the cavity for measurement
+    
+    Parameters:
+    ----------
+
+    tmon:               instance of the transmon_disp class
+    tpts:               array of times to compute the density matrix on
+    kappa:              cavity linewidth, sets the cavity decay rate
+    nkappas:            list of multiples of kappa to compute <a>
+    gamma1:             1/T1 for the qubit, zero by default for now
+    fext:               added text to the filename
+    write_ttraces:      save the time traces for <a>(t)
+    g:                  coupling strength between qubit and cavity
+
+    """
+
+    # Save the results for a_avg
+    a_avg = [] # np.zeros(nkappas.size, dtype=np.complex128)
+
+    # Save the time traces
+    if write_ttraces:
+        ttraces = []
+
+    # Get the traces data
+    if write_ttraces:
+
+        # Get the full <a> (t) time traces
+        # Create a pool first
+        nsize = nkappas.size
+        nthreads = mp.cpu_count()
+        pool = mp.Pool(processes=nthreads)
+        ttraces = pool.starmap(parfor_update_traces_mops,
+                zip([tpts]*nsize, [tmon]*nsize, 
+                    nkappas, [kappa]*nsize, [g]*nsize))
+
+        # Close pool and join results
+        pool.close()
+        pool.join()
+
+        # Convert the results to numpy arrays
+        ttraces = np.asarray(ttraces)
+
+        # Write the real and imaginary components separately
+        tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S') 
+        freal = 'data/areal_traces_%s_%s.bin' % (fext, tstamp)
+        fimag = 'data/aimag_traces_%s_%s.bin' % (fext, tstamp)
+
+        filenames = [freal, fimag]
+        ttraces.real.tofile(freal)
+        ttraces.imag.tofile(fimag)
+
+        return ttraces, filenames
+
+
+    else:
+
+        # Create a pool of processes to consume the inputs
+        nsize = nkappas.size
+        nthreads = mp.cpu_count()
+        pool = mp.Pool(processes=nthreads)
+        aavg = pool.starmap(parfor_update_mops,
+                zip([tpts]*nsize, [tmon]*nsize, 
+                    nkappas, [kappa]*nsize, [g]*nsize))
+
+        # Close pool and join results
+        pool.close()
+        pool.join()
+
+        # Change the data to a numpy array
+        a_avg = np.asarray(a_avg, dtype=np.complex128)
+        a_avg = a_avg.flatten()
+
+        # Write the results to file
+        tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S') 
+        freal = 'data/areal_%s_%s.bin' % (fext, tstamp)
+        fimag = 'data/aimag_%s_%s.bin' % (fext, tstamp)
+        filenames = [freal, fimag]
+        a_avg.real.tofile(freal) 
+        a_avg.imag.tofile(fimag)
+
+        
+        return a_avg, filenames
+
+
+def parfor_update_traces_mops(tpts, tmon, nk, kappa, g=None):
+    """
+    Returns the time traces for the <a> (t) measurements 
+    """
+
+    # Setup the transmon inputs
+    # t0 = tpts.max() - 3*nk / (2*kappa)
+    t0 = 3*nk / (2*kappa)
+    sig = nk / (2*kappa)
+    
+    print('Running measurement from %g to %g ns ...'%(t0-sig/2, t0+sig/2))
+
+    args = [1, t0, sig]
+    if g is not None:
+        args[0] = g
+    res  = tmon.run_dynamics(tpts, args)
+    aavg = tmon.get_a_expect(res)
+
+    # Store the results
     return aavg    
+
+
+def parfor_update_mops(tpts, tmon, nk, kappa, g=None):
+    """
+    TODO: fix this function to handle steady state identification
+    """
+
+    # Setup the transmon inputs
+    t0 = 3*nk / (2*kappa)
+    sig = nk / (2*kappa);
+    
+    print('Running measurement from %g to %g ns ...'%(t0-sig/2, t0+sig/2))
+
+    args = [1, t0, sig]
+    if g is not None:
+        args[0] = g
+    res  = tmon.run_dynamics(tpts, args)
+    aavg = tmon.get_a_expect(res)
+
+
+    return aavg[-1]
 
 
 def test_get_transmon_pdiag():
@@ -224,8 +355,53 @@ def test_get_transmon_pdiag():
     #                     write_ttraces=False)
 
 
+def test_get_transmon_pdiag_mops():
+    """
+    Test the phase diagram code with a simple transmon coupled to a cavity
+    dispersively
+    """
+
+    # 16 levels in the cavity, 3 in the transmon
+    Nc = 16; Nq = 3;
+    
+    # Set the cavity linewidth and the transmon T1
+    # T1 = 40 us, kappa = 125 kHz
+    kappa = 0.1; chi  = kappa / 2.
+    Delta = 1;
+    g = np.sqrt(Delta * kappa / 2.)
+    
+    # Set the initial state
+    # a = qt.tensor(qt.destroy(Nq), qt.qeye(Nc))
+    psi_g0 = mops.ket2dm(mops.tensor(mops.basis(Nq, 0), mops.basis(Nc, 0))) 
+    psi_e0 = mops.ket2dm(mops.tensor(mops.basis(Nq, 1), mops.basis(Nc, 0)))
+
+    # Set the time of the simulation in ns
+    tpts = np.linspace(0, 10/kappa, 3001)
+
+    # Run the phase diagram code here
+    nkappas = np.linspace(0.5, 3, 6)
+    
+    # Create the drive signals here
+    t0 = np.array([3*nk / (2*kappa) for nk in nkappas])
+    sig = np.array([nk / (2*kappa) for nk in nkappas])
+
+    # Drives used to generate the phase diagram
+    drvs = np.array([np.exp(-((tpts - t00)**2)/(2*sigg**2))\
+            for t00, sigg in zip(t0, sig)])
+
+    ## Run once with the |00> state
+    print('Running simulation with g = %g MHz ...\n\n' % (g/1e-3))
+
+    tmon = transmon_disp_mops(Nq, Nc, tpts,
+            psi0=psi_g0, gamma1=0, kappa=kappa, chi=chi)
+    adata_g, _ = get_transmon_pdiag_mops(tmon, tpts, kappa, nkappas,
+                gamma1=0, fext='0g', write_ttraces=True, g=g)
+    
+    ppt.plot_phase_traces(tpts, adata_g, nkappas, drvs, kappa)
+
+
 if __name__ == '__main__':
 
     # Run the above test code
-    test_get_transmon_pdiag()
-
+    # test_get_transmon_pdiag()
+    test_get_transmon_pdiag_mops()
