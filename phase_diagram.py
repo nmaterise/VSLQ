@@ -169,9 +169,10 @@ def get_transmon_pdiag_mops(tmon, tpts, kappa, nkappas,
         # Get the full <a> (t) time traces
         # Create a pool first
         nsize = nkappas.size
-        nthreads = mp.cpu_count()
-        pool = mp.Pool(processes=nthreads)
-        ttraces = pool.starmap(parfor_update_traces_mops,
+        print('Running with (%d) kappa values ...' % nsize)
+        nthreads = mp.cpu_count() // 2
+        pool = mp.Pool(2)
+        res = pool.starmap_async(parfor_update_traces_mops,
                 zip([tpts]*nsize, [tmon]*nsize, 
                     nkappas, [kappa]*nsize, [g]*nsize))
 
@@ -180,7 +181,7 @@ def get_transmon_pdiag_mops(tmon, tpts, kappa, nkappas,
         pool.join()
 
         # Convert the results to numpy arrays
-        ttraces = np.asarray(ttraces)
+        ttraces = np.asarray(res.get())
 
         # Write the real and imaginary components separately
         tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S') 
@@ -193,14 +194,13 @@ def get_transmon_pdiag_mops(tmon, tpts, kappa, nkappas,
 
         return ttraces, filenames
 
-
     else:
 
         # Create a pool of processes to consume the inputs
         nsize = nkappas.size
-        nthreads = mp.cpu_count()
-        pool = mp.Pool(processes=nthreads)
-        aavg = pool.starmap(parfor_update_mops,
+        nthreads = mp.cpu_count() // 2
+        pool = mp.Pool(2)
+        res = pool.starmap(parfor_update_mops,
                 zip([tpts]*nsize, [tmon]*nsize, 
                     nkappas, [kappa]*nsize, [g]*nsize))
 
@@ -209,7 +209,7 @@ def get_transmon_pdiag_mops(tmon, tpts, kappa, nkappas,
         pool.join()
 
         # Change the data to a numpy array
-        a_avg = np.asarray(a_avg, dtype=np.complex128)
+        a_avg = np.asarray(res.get(), dtype=np.complex128)
         a_avg = a_avg.flatten()
 
         # Write the results to file
@@ -376,10 +376,11 @@ def test_get_transmon_pdiag_mops():
     psi_e0 = mops.ket2dm(mops.tensor(mops.basis(Nq, 1), mops.basis(Nc, 0)))
 
     # Set the time of the simulation in ns
-    tpts = np.linspace(0, 10/kappa, 3001)
+    dt =(1./kappa) / 1e2
+    tpts = np.linspace(0, 10/kappa, int(np.round((10/kappa)/dt)+1))
 
     # Run the phase diagram code here
-    nkappas = np.linspace(0.5, 3, 6)
+    nkappas = np.linspace(0.5, 2, 4)
     
     # Create the drive signals here
     t0 = np.array([3*nk / (2*kappa) for nk in nkappas])

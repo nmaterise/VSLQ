@@ -227,7 +227,6 @@ class transmon_disp_mops(base_cqed_mops):
         """
     
         # Unpack arguments to compute the drive signal
-        print('args: {}'.format(args))
         if len(args) == 1:
             A, t0, sig = args[0]
         else:

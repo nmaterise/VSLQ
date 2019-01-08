@@ -184,7 +184,6 @@ class base_cqed_mops:
         """
 
         # Run the dynamics and return the results object
-        print('args in {}: {}'.format(self.run_dynamics.__name__, args))
         self.set_H(tpts, args)
         me_rk4 = odes.mesolve_rk4(self.psi0, tpts, tpts.max()/(10*tpts.size),
                 self.H, self.cops) 
