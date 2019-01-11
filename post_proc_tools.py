@@ -217,12 +217,12 @@ def plot_phase_ss(adata, tpts, nkappas, kappa, g, fext=''):
     a0 = np.array([ad[-1] for ad in adata])
 
     # Plot the data for each kappa
-    gk = g / np.sqrt(kappa)
+    gk = g / kappa
     ax.plot(a0.real / gk, a0.imag / gk, 'x-')
         
     # Set the x, y axis labels
-    ax.set_ylabel(r'$\Im\{\hat{a}\} / (g/\sqrt{\kappa})$', fontsize=fsize)
-    ax.set_xlabel(r'$\Re\{\hat{a}\} / (g/\sqrt{\kappa})$ ', fontsize=fsize)
+    ax.set_ylabel(r'$\Im\{\hat{a}\} / (g/\kappa)$', fontsize=fsize)
+    ax.set_xlabel(r'$\Re\{\hat{a}\} / (g/\kappa)$ ', fontsize=fsize)
     
     # Get and set the legends
     hdls, legs = ax.get_legend_handles_labels()
@@ -235,6 +235,147 @@ def plot_phase_ss(adata, tpts, nkappas, kappa, g, fext=''):
             format='eps')
     fig.savefig('figs/%s_ss_phase_diagram_%s.png' % (fext, tstamp),
             format='png')
+
+
+def plot_io_a(tpts, a0, ae, g, kappa, fext=''):
+    """
+    Plot the input/output theory calculations of Im<a> vs. Re<a> for
+    <sigma_z> = +/- hbar / 2
+    
+    Parameters:
+    ----------
+
+    tpts:       times that a0, ae are evaluated
+    a0, ae:     values of <a> evaluated for sigma_z = -/+ hbar/2
+    g:          coupling strength (chi in dispersive case)
+    kappa:      cavity decay rate
+
+    """
+       
+    # Setup the figure
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8), tight_layout=True)
+    
+    # Set the figure axes
+    fsize = 24
+    set_axes_fonts(ax, fsize)
+     
+    # Plot the real and imaginary parts of the ground and excited states
+    gk = g / kappa
+
+    # Plot discrete points
+    ax.plot(a0.real / gk, a0.imag / gk, 'b--')
+    ax.plot(ae.real / gk, ae.imag / gk, 'r--')
+
+    # Plot the interpolated function
+    tpts_interp = np.logspace(-2, 3, 6, base=2) / kappa
+    tpts_interp = np.hstack((0, tpts_interp))
+    a0re = np.interp(tpts_interp, tpts, a0.real)
+    a0im = np.interp(tpts_interp, tpts, a0.imag)
+    aere = np.interp(tpts_interp, tpts, ae.real)
+    aeim = np.interp(tpts_interp, tpts, ae.imag)
+    ax.plot(a0re / gk, a0im / gk, 'bo')
+    ax.plot(aere / gk, aeim / gk, 'ro')
+
+    # Set the x, y limits to agree with Didier et al.
+    ax.set_ylim([-1.1, 1.1])
+    ax.set_xlim([-0.2, 1.3])
+
+    # Set the x, y axis labels
+    ax.set_ylabel(r'$\Im\{\hat{a}\} / (g/\kappa)$', fontsize=fsize)
+    ax.set_xlabel(r'$\Re\{\hat{a}\} / (g/\kappa)$ ', fontsize=fsize)
+    
+    # Get and set the legends
+    hdls, legs = ax.get_legend_handles_labels()
+    ax.legend(hdls, legs, loc='best')
+    
+    
+    # Save the result to file
+    tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
+    fig.savefig('figs/%s_ssfull_phase_diagram_%s.eps' % (fext, tstamp),
+            format='eps')
+    fig.savefig('figs/%s_ssfull_phase_diagram_%s.png' % (fext, tstamp),
+            format='png')
+
+
+def plot_io_a_full(tpts, a0_d, ae_d, a0_l, ae_l, g, chi, kappa, fext=''):
+    """
+    Plot the input/output theory calculations of Im<a> vs. Re<a> for
+    <sigma_z> = +/- hbar / 2
+    
+    Parameters:
+    ----------
+
+    tpts:       times that a0, ae are evaluated
+    a0_d, ae_d: values of <a> evaluated for sigma_z = -/+ hbar/2, dispersive
+    a0_l, ae_l: values of <a> evaluated for sigma_z = -/+ hbar/2, longitudinal 
+    g:          coupling strength (chi in dispersive case)
+    kappa:      cavity decay rate
+
+    """
+
+    # Setup the figure
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8), tight_layout=True)
+    
+    # Set the figure axes
+    fsize = 24
+    set_axes_fonts(ax, fsize)
+     
+    # Plot the real and imaginary parts of the ground and excited states
+    gk = g / kappa
+    chik = chi / kappa
+
+    # Plot discrete points
+    ax.plot(a0_d.real / chik, a0_d.imag / chik, 'b--')
+    ax.plot(ae_d.real / chik, ae_d.imag / chik, 'r--')
+    ax.plot(a0_l.real / gk, a0_l.imag / gk, 'b--')
+    ax.plot(ae_l.real / gk, ae_l.imag / gk, 'r--')
+
+    # Plot the interpolated function
+    tpts_interp = np.logspace(-2, 3, 6, base=2) / kappa
+    tpts_interp = np.hstack((0, tpts_interp))
+    
+    # Interpolate the dispersive data
+    a0d = np.interp(tpts_interp, tpts, a0_d)
+    aed = np.interp(tpts_interp, tpts, ae_d)
+
+    # Interpolate the longitudinal data
+    a0l = np.interp(tpts_interp, tpts, a0_l)
+    ael = np.interp(tpts_interp, tpts, ae_l)
+
+    # Replot the circled points
+    ax.plot(a0d.real / chik, a0d.imag / chik, 'bo')
+    ax.plot(aed.real / chik, aed.imag / chik, 'ro')
+    ax.plot(a0l.real / gk, a0l.imag / gk, 'bo')
+    ax.plot(ael.real / gk, ael.imag / gk, 'ro')
+
+    # Set the x, y limits to agree with Didier et al.
+    ax.set_ylim([-1.25, 1.25])
+    ax.set_xlim([-0.2, 1.25])
+
+    # Set the x, y axis labels
+    ax.set_ylabel(r'$\Im\{\hat{a}\} / (g/\kappa)$', fontsize=fsize)
+    ax.set_xlabel(r'$\Re\{\hat{a}\} / (g/\kappa)$ ', fontsize=fsize)
+    
+    # Configure matplotlib to use color
+    # ax.annotate(r'$\left|0\right>$', xy=(1.1, 0.2), fontsize=fsize)
+    # ax.annotate(r'$\left|1\right>$', xy=(1.1, -0.2), fontsize=fsize)
+    ax.text(0, 1.1, 'longitudinal', fontsize=fsize)
+    ax.text(0.75, 1.1, 'dispersive', fontsize=fsize)
+    ax.text(1.1, 0.2, r'$\left|0\right>$', fontsize=fsize, color='blue')
+    ax.text(1.1, -0.2, r'$\left|1\right>$',  fontsize=fsize, color='red')
+    
+    # Get and set the legends
+    hdls, legs = ax.get_legend_handles_labels()
+    ax.legend(hdls, legs, loc='best')
+    
+    
+    # Save the result to file
+    tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
+    fig.savefig('figs/%s_ssfull_phase_diagram_%s.eps' % (fext, tstamp),
+            format='eps')
+    fig.savefig('figs/%s_ssfull_phase_diagram_%s.png' % (fext, tstamp),
+            format='png')
+
 
 
 def plot_phase_diagram(ag0, ae0, kappa):
