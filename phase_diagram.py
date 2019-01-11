@@ -8,7 +8,8 @@ as projected on the cavity state
 import numpy as np
 import qutip as qt
 import multiprocessing as mp
-from transmon import transmon_disp, transmon_disp_mops, transmon_long
+from transmon import transmon_disp, transmon_disp_mops, transmon_long, \
+     transmon_long_mops
 import post_proc_tools as ppt
 import matrix_ops as mops
 import datetime
@@ -380,7 +381,7 @@ def test_get_transmon_pdiag_mops():
     tpts = np.linspace(0, 10/kappa, int(np.round((10/kappa)/dt)+1))
 
     # Run the phase diagram code here
-    nkappas = np.linspace(0.5, 2, 4)
+    nkappas = np.linspace(0.5, 8, 16)
     
     # Create the drive signals here
     t0 = np.array([3*nk / (2*kappa) for nk in nkappas])
@@ -390,15 +391,36 @@ def test_get_transmon_pdiag_mops():
     drvs = np.array([np.exp(-((tpts - t00)**2)/(2*sigg**2))\
             for t00, sigg in zip(t0, sig)])
 
-    ## Run once with the |00> state
     print('Running simulation with g = %g MHz ...\n\n' % (g/1e-3))
 
+    ## Run once with the |00> state
+    # print('Running Transmon with dispersive coupling ...')
+    # tmon = transmon_disp_mops(Nq, Nc, tpts,
+    #         psi0=psi_g0, gamma1=0, kappa=kappa, chi=chi)
+    # adata_g, _ = get_transmon_pdiag_mops(tmon, tpts, kappa, nkappas,
+    #             gamma1=0, fext='0g', write_ttraces=True, g=g)
+    # 
+    # # ppt.plot_phase_traces(tpts, adata_g, nkappas, drvs, kappa)
+    # ppt.plot_phase_ss(adata_g, tpts, nkappas, kappa, g)
+
+    ## Run once with the |00> state
+    # print('Running Transmon with longitudinal coupling ...')
+    # tmon = transmon_long_mops(Nq, Nc, tpts,
+    #         psi0=psi_g0, gamma1=0, kappa=kappa, g=g)
+    # adata_g, _ = get_transmon_pdiag_mops(tmon, tpts, kappa, nkappas,
+    #             gamma1=0, fext='0g', write_ttraces=True, g=g)
+    # 
+    # # ppt.plot_phase_traces(tpts, adata_g, nkappas, drvs, kappa)
+    # ppt.plot_phase_ss(adata_g, tpts, nkappas, kappa, g)
+
+    ## Run once with the |10> state
     tmon = transmon_disp_mops(Nq, Nc, tpts,
-            psi0=psi_g0, gamma1=0, kappa=kappa, chi=chi)
-    adata_g, _ = get_transmon_pdiag_mops(tmon, tpts, kappa, nkappas,
-                gamma1=0, fext='0g', write_ttraces=True, g=g)
+            psi0=psi_e0, gamma1=0, kappa=kappa, g=g)
+    adata_e, _ = get_transmon_pdiag_mops(tmon, tpts, kappa, nkappas,
+                gamma1=0, fext='0e', write_ttraces=True, g=g)
     
-    ppt.plot_phase_traces(tpts, adata_g, nkappas, drvs, kappa)
+    # ppt.plot_phase_traces(tpts, adata_e, nkappas, drvs, kappa)
+    ppt.plot_phase_ss(adata_e, tpts, nkappas, kappa, g)
 
 
 if __name__ == '__main__':

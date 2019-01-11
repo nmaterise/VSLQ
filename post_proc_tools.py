@@ -197,7 +197,7 @@ def plot_phase_traces(tpts, adata, nkappas, drvs, kappa, tscale='ns'):
     fig.savefig('figs/traces_phase_diagram_%s.png' % tstamp, format='png')
 
 
-def plot_phase_ss(adata, tpts, nkappas, fext=''):
+def plot_phase_ss(adata, tpts, nkappas, kappa, g, fext=''):
     """
     Plots the steady state values of <a>(t) in a quadrature plot
     """
@@ -217,11 +217,12 @@ def plot_phase_ss(adata, tpts, nkappas, fext=''):
     a0 = np.array([ad[-1] for ad in adata])
 
     # Plot the data for each kappa
-    ax.plot(a0.real, a0.imag, 'x-')
+    gk = g / np.sqrt(kappa)
+    ax.plot(a0.real / gk, a0.imag / gk, 'x-')
         
     # Set the x, y axis labels
-    ax.set_ylabel(r'$\Im\{\hat{a}\}$', fontsize=fsize)
-    ax.set_xlabel(r'$\Re\{\hat{a}\}$', fontsize=fsize)
+    ax.set_ylabel(r'$\Im\{\hat{a}\} / (g/\sqrt{\kappa})$', fontsize=fsize)
+    ax.set_xlabel(r'$\Re\{\hat{a}\} / (g/\sqrt{\kappa})$ ', fontsize=fsize)
     
     # Get and set the legends
     hdls, legs = ax.get_legend_handles_labels()
@@ -238,6 +239,3 @@ def plot_phase_ss(adata, tpts, nkappas, fext=''):
 
 def plot_phase_diagram(ag0, ae0, kappa):
     pass
-
-
-

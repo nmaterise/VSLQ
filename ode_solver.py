@@ -82,8 +82,6 @@ class rk4:
         try:
 
             # Iterate over the time steps
-            print('Running solver() with %d time points ...' % (self.tpts.size))
-
             for n in range(1, self.tpts.size):
 
                 # Compute the standard kj values with function calls to rhs
@@ -276,8 +274,8 @@ def test_mesolve_mops():
     # Setup a basic cavity system
     Nc = 16;
     Nq = 3;
-    a = mops.tensor(np.eye(Nq), mops.aop(Nc))
-    b = mops.aop(Nq); bd = mops.dag(b)
+    a = mops.tensor(np.eye(Nq), mops.destroy(Nc))
+    b = mops.destroy(Nq); bd = mops.dag(b)
     sz = mops.tensor(bd@b, np.eye(Nc))
     wc = 5; wq = 6;
     kappa = 0.1; chi = kappa / 2.;

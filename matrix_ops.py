@@ -8,7 +8,7 @@ involving N-particles
 import numpy as np
 
 
-def aop(N):
+def destroy(N):
     """
     Returns the harmonic osicallator destruction operator
     """

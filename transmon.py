@@ -207,14 +207,14 @@ class transmon_disp_mops(base_cqed_mops):
     """
 
     def __init__(self, Nq, Nc, tpts, psi0=None,
-                 gamma1=0., kappa=0.1, chi=0.05):
+                 gamma1=0., kappa=0.1, g=0.05):
         """
         Class constructor
         """
 
         # Set the class members for the anharmonicity (alpha),
         base_cqed_mops.__init__(self, tpts=tpts, Nq=Nq, Nc=Nc, psi0=psi0,
-                           gamma1=gamma1, kappa=kappa, chi=chi)
+                           gamma1=gamma1, kappa=kappa, g=g)
     
         # Initialize the collapse operators as None
         self.set_ops()
@@ -242,11 +242,11 @@ class transmon_disp_mops(base_cqed_mops):
         """
 
         # Set the transmon operators
-        at0 = mops.aop(self.Nq)
+        at0 = mops.destroy(self.Nq)
         self.at = mops.tensor(at0, np.eye(self.Nc))
 
         # Set the cavity operators
-        ac0 = mops.aop(self.Nc)
+        ac0 = mops.destroy(self.Nc)
         self.ac = mops.tensor(np.eye(self.Nq), ac0)
         
 
@@ -258,10 +258,113 @@ class transmon_disp_mops(base_cqed_mops):
 
         # Time independent Hamiltonian
         # From Didier et al. supplemental section
-        H0 = self.chi * mops.dag(self.ac)@self.ac @ mops.dag(self.at)@self.at
+        # H0 = np.zeros(self.ac.shape, dtype=np.complex128)
+        H0 = self.g * mops.dag(self.ac)@self.ac @ mops.dag(self.at)@self.at
 
         # Time dependent readout Hamiltonian
         Hc = (self.ac + mops.dag(self.ac))
+        # Hc = self.chi * mops.dag(self.ac)@self.ac @ mops.dag(self.at)@self.at
+        Hd = self.get_drive(tpts, args)
+        self.H = [H0, [Hc, Hd]]
+
+
+    def set_init_state(self, psi0=None):
+        """
+        Sets the initial state of the system, if None set to the ground state of
+        the qubits and the cavity
+        """
+
+        # Set the state psi0
+        psi_gnd = mops.tensor(mops.basis(self.Nq, 0), mops.basis(self.Nc, 0))
+        self.psi0 = psi0 if (psi0 is not None) else psi_gnd
+
+
+    def get_a_expect(self, psif):
+        """
+        Compute the expectation value of the a operator for the cavity
+        """
+
+        # Compute the expectation value and return it
+        a_expect = mops.expect(self.ac, psif)
+
+        return a_expect
+
+
+    def get_n_expect(self, psif):
+        """
+        Compute the expectation value of the number operator for the transmon
+        """
+
+        # Compute the expectation value and return it
+        n_expect = mops.expect(mops.dag(self.at) @ self.at, psif)
+
+        return n_expect
+
+
+class transmon_long_mops(base_cqed_mops):
+    """
+    Implements the cavity-transmon longitudinal interaction
+    """
+
+    def __init__(self, Nq, Nc, tpts, psi0=None,
+                 gamma1=0., kappa=0.1, g=0.05):
+        """
+        Class constructor
+        """
+
+        # Set the class members for the anharmonicity (alpha),
+        base_cqed_mops.__init__(self, tpts=tpts, Nq=Nq, Nc=Nc, psi0=psi0,
+                           gamma1=gamma1, kappa=kappa, g=g)
+    
+        # Initialize the collapse operators as None
+        self.set_ops()
+        self.set_cops([self.gamma1, self.kappa], [self.at, self.ac])
+        self.set_init_state(psi0)
+
+    def get_drive(self, tpts, args):
+        """
+        Returns a Gaussian signal centered at t0, with width, sig
+        """
+    
+        # Unpack arguments to compute the drive signal
+        if len(args) == 1:
+            A, t0, sig = args[0]
+        else:
+            A, t0, sig = args
+
+        return A * np.exp(-(tpts - t0)**2 / (2*sig)**2)
+
+
+    def set_ops(self):
+        """
+        Set the operators needed to construct the Hamiltonian and
+        compute expectation values
+        """
+
+        # Set the transmon operators
+        at0 = mops.destroy(self.Nq)
+        self.at = mops.tensor(at0, np.eye(self.Nc))
+
+        # Set the cavity operators
+        ac0 = mops.destroy(self.Nc)
+        self.ac = mops.tensor(np.eye(self.Nq), ac0)
+        
+
+    def set_H(self, tpts, args):
+        """
+        Sets the dispersive Hamiltonian for a transmon coupled to a cavity
+        in the rotating frame of the cavity
+        """
+
+        # Time independent Hamiltonian
+        # From Didier et al. supplemental section
+        # H0 = np.zeros(self.ac.shape, dtype=np.complex128)
+        H0 = (np.conj(self.g) * self.ac + self.g * mops.dag(self.ac)) \
+             @ mops.dag(self.at) @ self.at
+
+        # Time dependent readout Hamiltonian
+        Hc = (self.ac + mops.dag(self.ac))
+        # Hc = self.chi * mops.dag(self.ac)@self.ac @ mops.dag(self.at)@self.at
         Hd = self.get_drive(tpts, args)
         self.H = [H0, [Hc, Hd]]
 
@@ -363,8 +466,8 @@ def test_transmon_mops():
     # Setup a basic cavity system
     Nc = 16;
     Nq = 3;
-    a = mops.tensor(np.eye(Nq), mops.aop(Nc))
-    b = mops.aop(Nq); bd = mops.dag(b)
+    a = mops.tensor(np.eye(Nq), mops.destroy(Nc))
+    b = mops.destroy(Nq); bd = mops.dag(b)
     sz = mops.tensor(bd@b, np.eye(Nc))
     wc = 5; wq = 6;
     gamma1=1/40.; kappa = 0.1; chi = kappa / 2.;
