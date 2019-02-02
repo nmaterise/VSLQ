@@ -358,13 +358,12 @@ class transmon_long_mops(base_cqed_mops):
 
         # Time independent Hamiltonian
         # From Didier et al. supplemental section
-        # H0 = np.zeros(self.ac.shape, dtype=np.complex128)
-        H0 = (np.conj(self.g) * self.ac + self.g * mops.dag(self.ac)) \
+        H0 = np.zeros(self.ac.shape, dtype=np.complex128)
+        Hc = 0.5 * (self.g * mops.dag(self.ac) + np.conj(self.g) * self.ac) \
              @ mops.dag(self.at) @ self.at
 
         # Time dependent readout Hamiltonian
-        Hc = (self.ac + mops.dag(self.ac))
-        # Hc = self.chi * mops.dag(self.ac)@self.ac @ mops.dag(self.at)@self.at
+        # Hc = self.ac + mops.dag(self.ac)
         Hd = self.get_drive(tpts, args)
         self.H = [H0, [Hc, Hd]]
 

@@ -278,7 +278,7 @@ def test_mesolve_mops():
     b = mops.destroy(Nq); bd = mops.dag(b)
     sz = mops.tensor(bd@b, np.eye(Nc))
     wc = 5; wq = 6;
-    kappa = 0.1; chi = kappa / 2.;
+    kappa = 0.1; chi = kappa / 2.; g = np.sqrt(chi)
     dt =(1./kappa) / 1e2
     tpts = np.linspace(0, 10/kappa, int(np.round((10/kappa)/dt)+1))
     # tpts_d = np.linspace(0, 10/kappa, 4*tpts.size)
@@ -286,7 +286,7 @@ def test_mesolve_mops():
     # Time independent Hamiltonian
     # H0 = wc*mops.dag(a)@a + wq*sz/2. + chi*mops.dag(a)@a@sz
     # In rotating frame
-    H0 = chi*mops.dag(a) @ a @ sz
+    H0 = g*(mops.dag(a) + a) @ sz
     
     # Time dependent Hamiltonian
     Hc = (a + mops.dag(a))
@@ -306,7 +306,7 @@ def test_mesolve_mops():
     rho_out = me_rk4.mesolve()
 
     # Compute the expectation value of a^t a
-    a_avg = ppt.get_expect(a, rho_out)
+    a_avg = mops.expect(a, rho_out)
     print('{}'.format(a_avg.real))
 
     # Plot the results
