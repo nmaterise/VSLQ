@@ -197,7 +197,7 @@ def plot_phase_traces(tpts, adata, nkappas, drvs, kappa, tscale='ns'):
     fig.savefig('figs/traces_phase_diagram_%s.png' % tstamp, format='png')
 
 
-def plot_phase_ss(adata, tpts, nkappas, kappa, g, fext=''):
+def plot_phase_ss(adata, tpts, nkappas, kappa, g, fext='', use_tseries=False):
     """
     Plots the steady state values of <a>(t) in a quadrature plot
     """
@@ -214,7 +214,10 @@ def plot_phase_ss(adata, tpts, nkappas, kappa, g, fext=''):
 
     # Take the steady state values, the last values
     # in the time domain simulation
-    a0 = np.array([ad[-1] for ad in adata])
+    if use_tseries:
+        a0 = adata
+    else:
+        a0 = np.array([ad[-1] for ad in adata])
 
     # Plot the data for each kappa
     gk = g / kappa

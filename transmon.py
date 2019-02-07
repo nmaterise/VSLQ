@@ -9,6 +9,7 @@ import post_proc_tools as ppt
 import matplotlib.pyplot as plt
 from qubit_cavity import base_cqed, base_cqed_mops
 import matrix_ops as mops
+import drive_tools as dts
 
 
 class transmon_disp(base_cqed):
@@ -31,7 +32,7 @@ class transmon_disp(base_cqed):
     
         # Initialize the collapse operators as None
         self.set_ops()
-        self.set_cops([self.gamma1, self.kappa], [self.at, self.ac])
+        self.set_cops([self.kappa], [self.ac])
         self.set_init_state(psi0)
         self.set_H()
     
@@ -128,7 +129,7 @@ class transmon_long(base_cqed):
 
         # Initialize the collapse operators as None
         self.set_ops()
-        self.set_cops([self.gamma1, self.kappa], [self.at, self.ac])
+        self.set_cops([self.kappa], [self.ac])
         self.set_init_state(psi0)
         self.set_H()
     
@@ -218,7 +219,7 @@ class transmon_disp_mops(base_cqed_mops):
     
         # Initialize the collapse operators as None
         self.set_ops()
-        self.set_cops([self.gamma1, self.kappa], [self.at, self.ac])
+        self.set_cops([self.kappa], [self.ac])
         self.set_init_state(psi0)
 
     def get_drive(self, tpts, args):
@@ -243,7 +244,25 @@ class transmon_disp_mops(base_cqed_mops):
 
         # Set the transmon operators
         at0 = mops.destroy(self.Nq)
-        self.at = mops.tensor(at0, np.eye(self.Nc))
+
+        if self.Nq > 2:
+            self.at = mops.tensor(at0, np.eye(self.Nc))
+        else:
+            self.sz = mops.tensor(mops.sop('z'), np.eye(self.Nc))
+
+            # Attempt to fix -0 terms
+            ## Get the indices of the non-zeros
+            zidx = set(list(np.flatnonzero(self.sz)))
+    
+            ## Get all of the indices, the take the union
+            ## and subtract intersection
+            allidx = set(list(range(0, self.sz.size)))
+            szflat = self.sz.flatten()
+            iunionidx = list(allidx.symmetric_difference(zidx))
+            
+            ## Overwrite the -0 values with abs(0)
+            szflat[iunionidx] = np.abs(szflat[iunionidx])
+            self.sz = szflat.reshape(self.sz.shape)
 
         # Set the cavity operators
         ac0 = mops.destroy(self.Nc)
@@ -259,7 +278,11 @@ class transmon_disp_mops(base_cqed_mops):
         # Time independent Hamiltonian
         # From Didier et al. supplemental section
         # H0 = np.zeros(self.ac.shape, dtype=np.complex128)
-        H0 = self.g * mops.dag(self.ac)@self.ac @ mops.dag(self.at)@self.at
+        # H0 = self.g * mops.dag(self.ac)@self.ac @ mops.dag(self.at)@self.at
+        if self.Nq > 2:
+            H0 = self.g * mops.dag(self.ac)@self.ac @ mops.dag(self.at)@self.at
+        else:
+            H0 = self.g * mops.dag(self.ac)@self.ac @ self.sz 
 
         # Time dependent readout Hamiltonian
         Hc = (self.ac + mops.dag(self.ac))
@@ -318,7 +341,7 @@ class transmon_long_mops(base_cqed_mops):
     
         # Initialize the collapse operators as None
         self.set_ops()
-        self.set_cops([self.gamma1, self.kappa], [self.at, self.ac])
+        self.set_cops([self.kappa], [self.ac])
         self.set_init_state(psi0)
 
     def get_drive(self, tpts, args):
@@ -335,6 +358,20 @@ class transmon_long_mops(base_cqed_mops):
         return A * np.exp(-(tpts - t0)**2 / (2*sig)**2)
 
 
+    def get_drive_tanh(self, tpts, args):
+        """
+        Returns a Gaussian signal centered at t0, with width, sig
+        """
+    
+        # Unpack arguments to compute the drive signal
+        if len(args) == 1:
+            x1, x2, a, b = args[0]
+        else:
+            x1, x2, a, b = args
+
+        return dts.get_tanh_env(tpts, x1, x2, a, b)
+
+
     def set_ops(self):
         """
         Set the operators needed to construct the Hamiltonian and
@@ -343,7 +380,25 @@ class transmon_long_mops(base_cqed_mops):
 
         # Set the transmon operators
         at0 = mops.destroy(self.Nq)
-        self.at = mops.tensor(at0, np.eye(self.Nc))
+    
+        if self.Nq > 2:
+            self.at = mops.tensor(at0, np.eye(self.Nc))
+        else:
+            self.sz = mops.tensor(mops.sop('z'), np.eye(self.Nc))
+
+            # Attempt to fix -0 terms
+            ## Get the indices of the non-zeros
+            zidx = set(list(np.flatnonzero(self.sz)))
+    
+            ## Get all of the indices, the take the union
+            ## and subtract intersection
+            allidx = set(list(range(0, self.sz.size)))
+            szflat = self.sz.flatten()
+            iunionidx = list(allidx.symmetric_difference(zidx))
+            
+            ## Overwrite the -0 values with abs(0)
+            szflat[iunionidx] = np.abs(szflat[iunionidx])
+            self.sz = szflat.reshape(self.sz.shape)
 
         # Set the cavity operators
         ac0 = mops.destroy(self.Nc)
@@ -356,26 +411,27 @@ class transmon_long_mops(base_cqed_mops):
         in the rotating frame of the cavity
         """
 
-        # Time independent Hamiltonian
-        # From Didier et al. supplemental section
-        H0 = np.zeros(self.ac.shape, dtype=np.complex128)
-        Hc = 0.5 * (self.g * mops.dag(self.ac) + np.conj(self.g) * self.ac) \
-             @ mops.dag(self.at) @ self.at
+        # Set the time independent Hamiltonian based on 2-level or 3-level
+        # approximation of the transmon
+        if self.Nq > 2:
+            H0 = self.g * self.at @ (mops.dag(self.ac) + self.ac)
+        else:
+            H0 = self.g * self.sz @ (mops.dag(self.ac) + self.ac)
 
-        # Time dependent readout Hamiltonian
-        # Hc = self.ac + mops.dag(self.ac)
-        Hd = self.get_drive(tpts, args)
-        self.H = [H0, [Hc, Hd]]
+        # Time independent readout Hamiltonian
+        self.H = H0
 
 
     def set_init_state(self, psi0=None):
         """
-        Sets the initial state of the system, if None set to the ground state of
+        Sets the initial state of the system,
+        if None set to the ground state of
         the qubits and the cavity
         """
 
         # Set the state psi0
-        psi_gnd = mops.tensor(mops.basis(self.Nq, 0), mops.basis(self.Nc, 0))
+        psi_gnd = mops.tensor(mops.basis(self.Nq, 0),
+                              mops.basis(self.Nc, 0))
         self.psi0 = psi0 if (psi0 is not None) else psi_gnd
 
 
@@ -442,7 +498,8 @@ def test_transmon():
     args = my_tmon.get_cy_window_dict(t0, sig, w, beta) 
 
     # Run the mesolver
-    res = my_tmon.run_dynamics(tpts, args)
+    res = my_tmon.run_dynamics(tpts, args,
+            dt=tpts.max()/(10*tpts.size))
     aavg = my_tmon.get_a_expect(res)
     # xvec, Wi = ppt.get_wigner(res.states[0])
     # xvec, Wf = ppt.get_wigner(res.states[-1])
@@ -464,54 +521,57 @@ def test_transmon_mops():
 
     # Setup a basic cavity system
     Nc = 16;
-    Nq = 3;
-    a = mops.tensor(np.eye(Nq), mops.destroy(Nc))
-    b = mops.destroy(Nq); bd = mops.dag(b)
-    sz = mops.tensor(bd@b, np.eye(Nc))
+    Nq = 2;
     wc = 5; wq = 6;
     gamma1=1/40.; kappa = 0.1; chi = kappa / 2.;
+    g = np.sqrt(chi) # 10*kappa 
+    gk = g / kappa
     dt =(1./kappa) / 1e2
     tpts = np.linspace(0, 10/kappa, int(np.round((10/kappa)/dt)+1))
 
-    # Time independent Hamiltonian
-    # H0 = wc*mops.dag(a)@a + wq*sz/2. + chi*mops.dag(a)@a@sz
-    # In rotating frame
-    H0 = chi*mops.dag(a) @ a @ sz
-    
-    # Time dependent Hamiltonian
-    Hc = (a + mops.dag(a))
-    # Hd = np.exp(-(tpts - tpts.max()/2)**2/(2*tpts.max()/6)**2) * np.sin(wc*tpts)
-    # In rotating frame
-    Hd = np.exp(-(tpts - tpts.max()/2)**2/(tpts.max()/6)**2)
-
     # Form the total Hamiltonian and set the collapse operators
-    H = [H0, [Hc, Hd]]
-    cops = [np.sqrt(kappa) * a]
-    rho0 = mops.ket2dm(mops.tensor(mops.basis(Nq, 0), mops.basis(Nc, 0)))
-    print('rho0:\n{}'.format(rho0))
     print('Time = [%g, %g] ns' % (tpts.min(), tpts.max()))
 
-
-    # Create an instance of the class
-    my_tmon = transmon_disp_mops(Nq, Nc, tpts, psi0=rho0, chi=chi,
-            gamma1=gamma1, kappa=kappa)
+    # Initial density matrices as outer products of ground and excited many body
+    # states of the qubit and the cavity
+    psi_e0 = mops.ket2dm(mops.tensor(mops.basis(Nq, 1), mops.basis(Nc, 0)))
+    psi_g0 = mops.ket2dm(mops.tensor(mops.basis(Nq, 0), mops.basis(Nc, 0))) 
 
     # Run the dynamics
     ## A, t0, sig
     args = [1, tpts.max()/2, tpts.max()/12]
-    rho_out = my_tmon.run_dynamics(tpts, args)    
+    #         gamma1=gamma1, kappa=kappa)
+    my_tmon = transmon_long_mops(Nq, Nc, tpts,
+            psi0=psi_g0, gamma1=0, kappa=kappa, g=g)
+    rho_g = my_tmon.run_dynamics(tpts, args,
+            dt=tpts.max()/(10*tpts.size))
+    a_g = my_tmon.get_a_expect(rho_g)
 
     # Compute the expectation value of a^t a
-    a_avg = my_tmon.get_a_expect(rho_out)
+    my_tmon = transmon_long_mops(Nq, Nc, tpts,
+            psi0=psi_e0, gamma1=0, kappa=kappa, g=g)
+    rho_e = my_tmon.run_dynamics(tpts, args,
+            dt=tpts.max()/(10*tpts.size))
+    a_e = my_tmon.get_a_expect(rho_e)
+    # n_avg = mops.expect(sz, rho_out)
 
     # Plot the results
-    plt.plot(kappa*tpts, a_avg.real,label=r'$\Re \langle a\rangle$')
-    plt.plot(kappa*tpts, a_avg.imag,label=r'$\Im \langle a\rangle$')
-    plt.xlabel(r'Time (1/$\kappa$)')
-    plt.legend(loc='best')
+    # plt.plot(kappa*tpts, a_g.real,label=r'$\Re \langle a\rangle$')
+    # plt.plot(kappa*tpts, a_g.imag,label=r'$\Im \langle a\rangle$')
 
-    plt.figure()
-    plt.plot(a_avg.real, a_avg.imag)
+    plt.plot(a_g.real / gk, a_g.imag / gk, 'b-', label=r'$\left| 0\right>$')
+    plt.plot(a_e.real / gk, a_e.imag / gk, 'r-', label=r'$\left| 1\right>$')
+    plt.xlabel(r'$\Re\left< a\right> / (g/\kappa)$', fontsize=20)
+    plt.ylabel(r'$\Im\left< a\right> / (g/\kappa)$', fontsize=20)
+    plt.legend(loc='best')
+    plt.tight_layout()
+
+    # plt.plot(kappa*tpts, n_avg.real, label=r'$\Re\langle \sigma_z \rangle$')
+    # plt.plot(kappa*tpts, n_avg.imag, label=r'$\Im\langle \sigma_z \rangle$')
+    # plt.xlabel(r'Time (1/$\kappa$)')
+    # plt.legend(loc='best')
+
+    # plt.figure()
 
 
 if __name__ == '__main__':

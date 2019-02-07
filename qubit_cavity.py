@@ -178,14 +178,18 @@ class base_cqed_mops:
         self.cops = [np.sqrt(g)*cop for g, cop in zip(gammas, cops)]
 
 
-    def run_dynamics(self, tpts, *args):
+    def run_dynamics(self, tpts, *args, **kwargs):
         """
         Run the master equation solver and return the results object
         """
 
         # Run the dynamics and return the results object
         self.set_H(tpts, args)
-        me_rk4 = odes.mesolve_rk4(self.psi0, tpts, tpts.max()/(10*tpts.size),
+        if kwargs is not None:
+            dt = kwargs['dt']
+        else:
+            dt = self.tpts.max() / (10 * self.tpts.size)
+        me_rk4 = odes.mesolve_rk4(self.psi0, tpts, dt,
                 self.H, self.cops) 
         psif = me_rk4.mesolve()
         
