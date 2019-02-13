@@ -141,8 +141,8 @@ class mesolve_rk4(rk4):
         elif rho.__class__ == np.ndarray:
             comm  = lambda a, b : a@b - b@a
             acomm = lambda a, b : a@b + b@a
-            D = lambda a, p : 2*a @ p @ self.dagger(a) \
-                - acomm(self.dagger(a) @ a, p)
+            D = lambda a, p : a @ p @ self.dagger(a) \
+                - 0.5*acomm(self.dagger(a)@a, p)
 
         # Compute the commutator and the dissipator terms, with hbar = 1
         ## -i/hbar [H, rho] + sum_j D[a_j] rho
@@ -239,7 +239,7 @@ class langevin_rk4(rk4):
     Markovian Langevin equation solver using the rk4 class options above
     """
 
-    def __init__(self, a0, tpts, dt, H, ain):
+    def __init__(self, a0, tpts, dt, ain, kappa, sz0, gz):
         """
         Class constructor
     
@@ -250,13 +250,16 @@ class langevin_rk4(rk4):
         tpts:       array of times to compute the density matrix on
         dt:         time step used by the RK4 solver, should be equal to
                     t_n - t_n-1 
-        H:          Hamiltonian in same format as qt.mesolve [H0, [Hc, eps(t)]]
         ain:        input mode, e.g. form of the drive
+        kappa:      damping coefficient, e.g. linewidth
+        sz0:        initial state of the qubit
+        gz:         coupling between the qubit and cavity
 
         """
 
         # Call the rk4 constructor to start
-        rk4.__init__(self, a0, tpts, dt, H=H, ain=ain)
+        rk4.__init__(self, a0, tpts, dt, ain=ain,
+                     kappa=kappa, sz0=sz0, gz=gz)
 
 
     def rhs(self, a, t):
@@ -264,56 +267,9 @@ class langevin_rk4(rk4):
         Implement the right hand side of the Langevin equation of motion
         """        
         
-        # Readoff H and cops
-        H   = self.H
-    
-        # Get the interpolant of ain(t)
-        ain = self.aint
-
-        # Define the commutator and anti commutator
-        ## Use the overloaded operator multiplication with Qobjs
-        if a.__class__ == qt.qobj.Qobj:
-            comm  = lambda aa, bb : aa*bb - bb*aa 
-            acomm = lambda aa, bb : aa*bb + bb*aa
-
-        ## Use the matrix multiplication operator in Python 3
-        elif a.__class__ == np.ndarray:
-            comm  = lambda aa, bb : aa@bb - bb@aa
-            acomm = lambda aa, bb : aa@bb + bb@aa
-
-        # Compute the commutator and the dissipator terms, with hbar = 1
-        ## -i/hbar [H, a] + sum_j D[a_j] a
-        ## Start with the case where H is just a qt.Qobj
-        if H.__class__ == qt.qobj.Qobj and H.__class__ == np.ndarray:
-            Hcommrho = 1j * comm(H, qt.Qobj(a))
-
-        ## Handle the list case, e.g. with time dependence as a numpy array
-        ## specifying the drive Hamiltonian in the same format as qutip, e.g.
-        ## [H0, [H1, e1(t)], [H2, e2(t)], ...]
-        elif H.__class__ == list and a.__class__ == qt.qobj.Qobj:
-
-            ## Extract the time-independent Hamiltonian terms
-            H0 = H[0]
-            Hcommrho = comm(H0, qt.Qobj(a))
-
-            ## Readoff the remaining time-dependent Hamiltonian terms
-            Hcommrho += np.sum([Hd(t)*Hk for Hk, Hd in H[1:][0]])            
-            Hcommrho *= 1j
-
-        ## Numpy array equivalent calculations of commutators
-        elif H.__class__ == list and a.__class__ == np.ndarray:
-
-            ## Extract the time-independent Hamiltonian terms
-            H0 = H[0]
-            Hcomma = np.complex128(comm(H0, a))
-
-            ## Readoff the remaining time-dependent Hamiltonian terms
-            Hcomma += np.sum([Hd(t)*Hk for Hk, Hd in H[1:][0]])
-            Hcomma *= 1j
-
-        ## Return the result as a dense matrix
-        # rhs_data = (Hcommrho + Dterms).data.todense()
-        rhs_data = Hcomma
+        # Use the right hand side for the simple longitudinal case
+        rhs_data = -1j * 0.5 * self.gz * self.sz0 * a - 0.5 * self.kappa * a \
+                    - np.sqrt(self.kappa) * self.ain
 
         return rhs_data
     
@@ -323,39 +279,10 @@ class langevin_rk4(rk4):
         Run the rk4 solver, providing the interpolated time-dependent drive terms
         """
 
-        # Handle the simple, time-independent case
-        if self.H.__class__ == qt.qobj.Qobj:
-            rho_out = self.solver()
-            return rho_out
-        
-        # Handle the case involving drive terms
-        elif self.H.__class__ == list:
+        # Compute the resultant cavity mode
+        ares = self.solver()
 
-            # Interpolate the drive terms
-            drvs = [interp(self.tpts, self.H[1:][0][1])]
-            HH = [self.H[0], [[Hk, d] for Hk, d in zip(self.H[1:][0], drvs)]]
-
-            # Set the class instance of the Hamiltonian to the 
-            # list comprehension with the interpolants embedded
-            self.H = HH
-
-            # Call the solver with the interpolated drives
-            rho_out = self.solver()
-
-            return rho_out
-
-        # Handle the case where the drive is stored in the ain(t) term
-        elif self.H__class__ == np.ndarray:
-            # Interpolate the drive terms
-            self.aint = interp(self.tpts, self.ain)
-
-            # Call the solver with the interpolated drives
-            rho_out = self.solver()
-
-            return rho_out
-
-        else:
-            raise('H.__class__ ({}) not supported'.format(H.__class__))
+        return np.array(ares)
 
 
 def test_mesolve():
@@ -370,7 +297,7 @@ def test_mesolve():
     b = qt.tensor(qt.destroy(Nq), qt.qeye(Nc))
     wc = 5;
     kappa = 0.1
-    dt =(1./kappa) / 1e2
+    dt = (1./kappa) / 1e2
     tpts = np.linspace(0, 10/kappa, int(np.round((10/kappa)/dt)+1))
 
     # Time independent Hamiltonian
@@ -448,8 +375,54 @@ def test_mesolve_mops():
     plt.legend(loc='best')
 
 
+def test_langevin_solve():
+    """
+    Tests the Langevin equation solver for the longitudinal case in Didier, 2015
+    """
+
+
+    # Parameters for the cavity, coupling, etc.
+    kappa = 0.1; chi = kappa / 2.; gz = 100*kappa # np.sqrt(chi)
+    dt =(1./kappa) / 1e2
+    tpts = np.linspace(0, 8, 200) / kappa
+
+    # Use the vacuum as the input mode
+    ain = 0
+    
+    # Initialize the state of the intracavity mode
+    sz0e = 1; sz0g = -1;
+    a0e = np.array([-1j*sz0e*gz/kappa], dtype=np.complex128)
+    a0g = np.array([-1j*sz0g*gz/kappa], dtype=np.complex128)
+    
+    print('Time = [%g, %g] ns' % (tpts.min(), tpts.max()))
+
+    # Setup the master equation solver instance
+    le_rk4 = langevin_rk4(a0g, tpts, dt, ain, kappa, sz0g, gz) 
+    ag = le_rk4.langevin_solve()
+    le_rk4 = langevin_rk4(a0e, tpts, dt, ain, kappa, sz0e, gz) 
+    ae = le_rk4.langevin_solve()
+
+    # Plot the results
+    plt.plot(tpts*kappa, ae.real / (gz/kappa), 
+            '-', label=r'$\Re\langle a \rangle\left|e\right>$')
+    plt.plot(tpts*kappa, ae.imag / (gz/kappa), 
+            '-.', label=r'$\Im\langle a \rangle\left|e\right>$')
+    plt.plot(tpts*kappa, ag.real / (gz/kappa), 
+            '--', label=r'$\Re\langle a \rangle\left|g\right>$')
+    plt.plot(tpts*kappa, ag.imag / (gz/kappa), 
+            ':', label=r'$\Im\langle a \rangle\left|g\right>$')
+
+    # plt.plot(ae.real / (gz/kappa), ae.imag / (gz/kappa),
+    #          '-', label=r'$\left|e\right>$')
+    # plt.plot(ag.real / (gz/kappa), ag.imag / (gz/kappa),
+    #          '-.', label=r'$\left|g\right>$')
+
+    plt.legend(loc='best')
+    plt.tight_layout()
+
+
 if __name__ == '__main__':
     
     # Run the test example above for a single cavity driven by an applied field
     # test_mesolve()
-    test_mesolve_mops()
+    test_langevin_solve()

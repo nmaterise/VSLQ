@@ -330,14 +330,14 @@ class transmon_long_mops(base_cqed_mops):
     """
 
     def __init__(self, Nq, Nc, tpts, psi0=None,
-                 gamma1=0., kappa=0.1, g=0.05):
+                 gamma1=0., kappa=0.1, g=0.05, phi=0):
         """
         Class constructor
         """
 
         # Set the class members for the anharmonicity (alpha),
         base_cqed_mops.__init__(self, tpts=tpts, Nq=Nq, Nc=Nc, psi0=psi0,
-                           gamma1=gamma1, kappa=kappa, g=g)
+                           gamma1=gamma1, kappa=kappa, g=g, phi=phi)
     
         # Initialize the collapse operators as None
         self.set_ops()
@@ -416,7 +416,8 @@ class transmon_long_mops(base_cqed_mops):
         if self.Nq > 2:
             H0 = self.g * self.at @ (mops.dag(self.ac) + self.ac)
         else:
-            H0 = self.g * self.sz @ (mops.dag(self.ac) + self.ac)
+            H0 = self.sz @ (mops.dag(self.ac)*self.g \
+                    + self.ac*np.conj(self.g))
 
         # Time independent readout Hamiltonian
         self.H = H0
@@ -541,28 +542,36 @@ def test_transmon_mops():
     ## A, t0, sig
     args = [1, tpts.max()/2, tpts.max()/12]
     #         gamma1=gamma1, kappa=kappa)
-    my_tmon = transmon_long_mops(Nq, Nc, tpts,
-            psi0=psi_g0, gamma1=0, kappa=kappa, g=g)
-    rho_g = my_tmon.run_dynamics(tpts, args,
-            dt=tpts.max()/(10*tpts.size))
-    a_g = my_tmon.get_a_expect(rho_g)
+    ## Play with the phase of the a, a^t operators
+    phi = 0
+    phi2 = 0 #np.exp(1j*2.1)
+    # my_tmon = transmon_long_mops(Nq, Nc, tpts,
+    #         psi0=psi_g0, gamma1=0, kappa=kappa, g=g*phi2, phi=phi)
+    # rho_g = my_tmon.run_dynamics(tpts, args,
+    #         dt=tpts.max()/(10*tpts.size))
+    # a_g = my_tmon.get_a_expect(rho_g)
 
     # Compute the expectation value of a^t a
     my_tmon = transmon_long_mops(Nq, Nc, tpts,
-            psi0=psi_e0, gamma1=0, kappa=kappa, g=g)
+            psi0=psi_e0, gamma1=0, kappa=kappa, g=g*phi2, phi=phi)
     rho_e = my_tmon.run_dynamics(tpts, args,
             dt=tpts.max()/(10*tpts.size))
     a_e = my_tmon.get_a_expect(rho_e)
     # n_avg = mops.expect(sz, rho_out)
 
+    rhotr = mops.expect(np.eye(Nq*Nc), rho_e)
+
+    plt.plot(tpts, rhotr.real, label=r'$\Re\mathrm{Tr}\rho$')
+    plt.plot(tpts, rhotr.imag, label=r'$\Im\mathrm{Tr}\rho$')
+
     # Plot the results
     # plt.plot(kappa*tpts, a_g.real,label=r'$\Re \langle a\rangle$')
     # plt.plot(kappa*tpts, a_g.imag,label=r'$\Im \langle a\rangle$')
 
-    plt.plot(a_g.real / gk, a_g.imag / gk, 'b-', label=r'$\left| 0\right>$')
-    plt.plot(a_e.real / gk, a_e.imag / gk, 'r-', label=r'$\left| 1\right>$')
-    plt.xlabel(r'$\Re\left< a\right> / (g/\kappa)$', fontsize=20)
-    plt.ylabel(r'$\Im\left< a\right> / (g/\kappa)$', fontsize=20)
+    # plt.plot(a_g.real / gk, a_g.imag / gk, 'b-', label=r'$\left| 0\right>$')
+    # plt.plot(a_e.real / gk, a_e.imag / gk, 'r-', label=r'$\left| 1\right>$')
+    # plt.xlabel(r'$\Re\left< a\right> / (g/\kappa)$', fontsize=20)
+    # plt.ylabel(r'$\Im\left< a\right> / (g/\kappa)$', fontsize=20)
     plt.legend(loc='best')
     plt.tight_layout()
 
