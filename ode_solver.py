@@ -239,7 +239,7 @@ class langevin_rk4(rk4):
     Markovian Langevin equation solver using the rk4 class options above
     """
 
-    def __init__(self, a0, tpts, dt, ain, kappa, sz0, gz):
+    def __init__(self, a0, tpts, dt, ain, kappa, sz0, gz, eq_type):
         """
         Class constructor
     
@@ -254,12 +254,15 @@ class langevin_rk4(rk4):
         kappa:      damping coefficient, e.g. linewidth
         sz0:        initial state of the qubit
         gz:         coupling between the qubit and cavity
+        eq_type:    equation of motion type (long / disp) for longitudinal
+                    or dispersive coupling type
 
         """
 
         # Call the rk4 constructor to start
         rk4.__init__(self, a0, tpts, dt, ain=ain,
-                     kappa=kappa, sz0=sz0, gz=gz)
+                     kappa=kappa, sz0=sz0, gz=gz,
+                     eq_type=eq_type)
 
 
     def rhs(self, a, t):
@@ -268,8 +271,14 @@ class langevin_rk4(rk4):
         """        
         
         # Use the right hand side for the simple longitudinal case
-        rhs_data = -1j * 0.5 * self.gz * self.sz0 * a - 0.5 * self.kappa * a \
-                    - np.sqrt(self.kappa) * self.ain
+        if self.eq_type == 'long':
+            rhs_data = -1j * 0.5 * self.gz * self.sz0 - 0.5 * self.kappa * a \
+                        - np.sqrt(self.kappa) * self.ain
+
+        # Handle the dispersive case
+        elif self.eq_type == 'disp':
+            rhs_data = -1j * self.gz * self.sz0 * a - 0.5 * self.kappa * a \
+                        - np.sqrt(self.kappa) * self.ain
 
         return rhs_data
     
@@ -382,43 +391,37 @@ def test_langevin_solve():
 
 
     # Parameters for the cavity, coupling, etc.
-    kappa = 0.1; chi = kappa / 2.; gz = 100*kappa # np.sqrt(chi)
-    dt =(1./kappa) / 1e2
-    tpts = np.linspace(0, 8, 200) / kappa
+    kappa = 0.1; chi = kappa / 2.; gz = np.sqrt(chi)
+    dt = (1./kappa) / 1e3
+    tpts = np.linspace(0, 8, 101) / kappa
 
     # Use the vacuum as the input mode
-    ain = 0
+    ain = -1 / np.sqrt(kappa) 
     
     # Initialize the state of the intracavity mode
     sz0e = 1; sz0g = -1;
-    a0e = np.array([-1j*sz0e*gz/kappa], dtype=np.complex128)
-    a0g = np.array([-1j*sz0g*gz/kappa], dtype=np.complex128)
+    a0e = np.array([0], dtype=np.complex128)
+    a0g = np.array([0], dtype=np.complex128)
     
     print('Time = [%g, %g] ns' % (tpts.min(), tpts.max()))
 
     # Setup the master equation solver instance
-    le_rk4 = langevin_rk4(a0g, tpts, dt, ain, kappa, sz0g, gz) 
-    ag = le_rk4.langevin_solve()
-    le_rk4 = langevin_rk4(a0e, tpts, dt, ain, kappa, sz0e, gz) 
-    ae = le_rk4.langevin_solve()
+    ## Solve the dispersive case first
+    le_rk4 = langevin_rk4(a0g, tpts, dt, ain, kappa, sz0g, 40*chi, eq_type='disp') 
+    ag_disp = le_rk4.langevin_solve()
+    le_rk4 = langevin_rk4(a0e, tpts, dt, ain, kappa, sz0e, 40*chi, eq_type='disp') 
+    ae_disp = le_rk4.langevin_solve()
 
-    # Plot the results
-    plt.plot(tpts*kappa, ae.real / (gz/kappa), 
-            '-', label=r'$\Re\langle a \rangle\left|e\right>$')
-    plt.plot(tpts*kappa, ae.imag / (gz/kappa), 
-            '-.', label=r'$\Im\langle a \rangle\left|e\right>$')
-    plt.plot(tpts*kappa, ag.real / (gz/kappa), 
-            '--', label=r'$\Re\langle a \rangle\left|g\right>$')
-    plt.plot(tpts*kappa, ag.imag / (gz/kappa), 
-            ':', label=r'$\Im\langle a \rangle\left|g\right>$')
+    ## Solve the longitudinal case next
+    le_rk4 = langevin_rk4(a0g, tpts, dt, 0*ain, kappa, sz0g, gz, eq_type='long') 
+    ag_long = le_rk4.langevin_solve()
+    le_rk4 = langevin_rk4(a0e, tpts, dt, 0*ain, kappa, sz0e, gz, eq_type='long') 
+    ae_long = le_rk4.langevin_solve()
 
-    # plt.plot(ae.real / (gz/kappa), ae.imag / (gz/kappa),
-    #          '-', label=r'$\left|e\right>$')
-    # plt.plot(ag.real / (gz/kappa), ag.imag / (gz/kappa),
-    #          '-.', label=r'$\left|g\right>$')
-
-    plt.legend(loc='best')
-    plt.tight_layout()
+    ## Plot the results
+    ppt.plot_io_a_full(tpts, ag_disp, ae_disp, ag_long, ae_long, gz, 40*chi,
+            kappa, fext='langevin_numerical', use_interp=False)
+    
 
 
 if __name__ == '__main__':

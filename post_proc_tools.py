@@ -300,7 +300,8 @@ def plot_io_a(tpts, a0, ae, g, kappa, fext=''):
             format='png')
 
 
-def plot_io_a_full(tpts, a0_d, ae_d, a0_l, ae_l, g, chi, kappa, fext=''):
+def plot_io_a_full(tpts, a0_d, ae_d, a0_l, ae_l,
+                   g, chi, kappa, fext='', use_interp=True):
     """
     Plot the input/output theory calculations of Im<a> vs. Re<a> for
     <sigma_z> = +/- hbar / 2
@@ -324,8 +325,8 @@ def plot_io_a_full(tpts, a0_d, ae_d, a0_l, ae_l, g, chi, kappa, fext=''):
     set_axes_fonts(ax, fsize)
      
     # Plot the real and imaginary parts of the ground and excited states
-    gk = g / kappa
-    chik = chi / kappa
+    gk = a0_l.imag.max() # g / kappa
+    chik = a0_d.imag.max() # chi / kappa
 
     # Plot discrete points
     ax.plot(a0_d.real / chik, a0_d.imag / chik, 'b--')
@@ -333,23 +334,26 @@ def plot_io_a_full(tpts, a0_d, ae_d, a0_l, ae_l, g, chi, kappa, fext=''):
     ax.plot(a0_l.real / gk, a0_l.imag / gk, 'b--')
     ax.plot(ae_l.real / gk, ae_l.imag / gk, 'r--')
 
-    # Plot the interpolated function
-    tpts_interp = np.logspace(-2, 3, 6, base=2) / kappa
-    tpts_interp = np.hstack((0, tpts_interp))
-    
-    # Interpolate the dispersive data
-    a0d = np.interp(tpts_interp, tpts, a0_d)
-    aed = np.interp(tpts_interp, tpts, ae_d)
+    ## Interpolate if requested for the points
+    if use_interp: 
 
-    # Interpolate the longitudinal data
-    a0l = np.interp(tpts_interp, tpts, a0_l)
-    ael = np.interp(tpts_interp, tpts, ae_l)
+        # Plot the interpolated function
+        tpts_interp = np.logspace(-2, 3, 6, base=2) / kappa
+        tpts_interp = np.hstack((0, tpts_interp))
+        
+        # Interpolate the dispersive data
+        a0d = np.interp(tpts_interp, tpts, a0_d)
+        aed = np.interp(tpts_interp, tpts, ae_d)
 
-    # Replot the circled points
-    ax.plot(a0d.real / chik, a0d.imag / chik, 'bo')
-    ax.plot(aed.real / chik, aed.imag / chik, 'ro')
-    ax.plot(a0l.real / gk, a0l.imag / gk, 'bo')
-    ax.plot(ael.real / gk, ael.imag / gk, 'ro')
+        # Interpolate the longitudinal data
+        a0l = np.interp(tpts_interp, tpts, a0_l)
+        ael = np.interp(tpts_interp, tpts, ae_l)
+
+        # Replot the circled points
+        ax.plot(a0d.real / chik, a0d.imag / chik, 'bo')
+        ax.plot(aed.real / chik, aed.imag / chik, 'ro')
+        ax.plot(a0l.real / gk, a0l.imag / gk, 'bo')
+        ax.plot(ael.real / gk, ael.imag / gk, 'ro')
 
     # Set the x, y limits to agree with Didier et al.
     ax.set_ylim([-1.25, 1.25])
@@ -370,7 +374,6 @@ def plot_io_a_full(tpts, a0_d, ae_d, a0_l, ae_l, g, chi, kappa, fext=''):
     # Get and set the legends
     hdls, legs = ax.get_legend_handles_labels()
     ax.legend(hdls, legs, loc='best')
-    
     
     # Save the result to file
     tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
