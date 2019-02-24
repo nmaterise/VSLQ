@@ -181,7 +181,7 @@ class mesolve_rk4(rk4):
             Hcommrho *= -1j
 
         ## Compute the dissipator terms
-        Dterms = 0*np.sum([D(ck, rho) for ck in cops])
+        Dterms = np.sum([D(ck, rho) for ck in cops])
 
         ## Return the result as a dense matrix
         ## Use the numpy array convention to 

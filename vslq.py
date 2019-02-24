@@ -66,14 +66,15 @@ class vslq_mops(base_cqed_mops):
         ss1 = mops.basis(self.Ns, 1)
         
         # Compute the density matrices corresponding to the states
+        ## These correspond to the projectors |n_k > < n_k|
         self.s1dm  = mops.ket2dm(s1); 
         self.s2dm  = mops.ket2dm(s2); 
         self.ss0dm = mops.ket2dm(ss0);
         self.ss1dm = mops.ket2dm(ss1)
 
         # Define the logical states
-        self.L0 = mops.ket2dm((s2 + s0) / np.linalg.norm(s2 + s0))
-        self.L1 = mops.ket2dm((s2 - s0) / np.linalg.norm(s2 - s0))
+        self.L0 = mops.ket2dm((s2 + s0) / np.sqrt(2))
+        self.L1 = mops.ket2dm((s2 - s0) / np.sqrt(2))
 
 
     def set_init_state(self, logical_state='L0'):
@@ -118,8 +119,10 @@ class vslq_mops(base_cqed_mops):
         self.asr = mops.tensor(self.Ip, self.Ip, self.Is, as0)
 
         ## Two photon operators on the logical manifold
-        self.Xl = (self.apl**2 + mops.dag(self.apl**2)) / np.sqrt(2)
-        self.Xr = (self.apr**2 + mops.dag(self.apr**2)) / np.sqrt(2)
+        self.Xl = (self.apl@self.apl \
+                + mops.dag(self.apl)@mops.dag(self.apl)) / np.sqrt(2)
+        self.Xr = (self.apr@self.apr \
+                + mops.dag(self.apr)@mops.dag(self.apr)) / np.sqrt(2)
 
 
     def set_H(self, tpts, args):
@@ -128,21 +131,19 @@ class vslq_mops(base_cqed_mops):
         """
         
         # Hp = -W Xl Xr + 1/2 d (Pl1 + Pr1)
-        Hp = -self.W * self.Xl*self.Xr + 0.5*self.d*(self.Pl1 + self.Pr1)
+        Hp = -self.W * self.Xl@self.Xr + 0.5*self.d*(self.Pl1 + self.Pr1)
         
         # Hs = (W + d/2) (asl^t asl + asr^t asr)
-        Hs = (self.W + self.d/2.) * (mops.dag(self.asl)*self.asl \
-                + mops.dag(self.asr)*self.asr)
+        Hs = (self.W + self.d/2.) * (mops.dag(self.asl)@self.asl \
+                + mops.dag(self.asr)@self.asr)
 
         # Hps = O (apl^t asl^t + apr^t asr^t + h.c.)
-        Hps = self.Om*(mops.dag(self.apl)*mops.dag(self.asl) \
-                + mops.dag(self.apr)*mops.dag(self.asr))
+        Hps = self.Om*(mops.dag(self.apl)@mops.dag(self.asl) \
+                + mops.dag(self.apr)@mops.dag(self.asr))
         Hps += mops.dag(Hps)
         
         # Time independent Hamiltonian is sum of all contributions
-        H0 = Hp + Hs + Hps
-
-        self.H = H0
+        self.H = Hp + Hs + Hps
 
 
     def get_logical_expect(self, psif):
@@ -169,7 +170,8 @@ def test_vslq_dynamics():
 
     # Some example settings
     Np = 3; Ns = 2
-    W = 70.0*np.pi; delta = 700.0*np.pi; Om = 5.5; gammas = 9.2; gammap = 0;
+    W = 70.0*np.pi; delta = 700.0*np.pi; Om = 5.5;
+    gammap = 0; gammas = 0; #9.2;
 
     # Set the time array
     tpts = np.linspace(0, 2*np.pi / W, 1001)
