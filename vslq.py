@@ -8,10 +8,12 @@ Created: 180921
 """
 
 import numpy as np
-import qutip as qt
-from qubit_cavity import base_cqed
+import matrix_ops as mops
+from qubit_cavity import base_cqed, base_cqed_mops
+import matplotlib.pyplot as plt
 
-class vslq(base_cqed):
+
+class vslq_mops(base_cqed_mops):
     """
     Very Small Logical Qubit (VSLQ) Class
     
@@ -20,7 +22,8 @@ class vslq(base_cqed):
 
     """
 
-    def __init__(self, Ns, Np, W, d, Om, gammap, gammas, readout_type='disp'):
+    def __init__(self, Ns, Np, tpts, W, d, Om,
+                 gammap, gammas, readout_type='disp'):
         """
         Constructor for the class
 
@@ -39,8 +42,7 @@ class vslq(base_cqed):
         """
 
         # Set the class members here
-        # self.Ns = Ns; self.Np = Np;
-        base_cqed.__init__(self, Ns=Ns, Np=Np, W=W, d=d, Om=Om,
+        base_cqed_mops.__init__(self, tpts=tpts, Ns=Ns, Np=Np, W=W, d=d, Om=Om,
                 gammap=gammap, gammas=gammas)
 
         # Set the states and the operators for the class
@@ -48,8 +50,8 @@ class vslq(base_cqed):
         self.set_ops()
         self.set_cops([self.gammas, self.gammas, self.gammap, self.gammap],
                       [self.asl, self.asr, self.apl, self.apr])
-        self.set_H()
         self.set_init_state()
+
 
     def set_states(self):
         """
@@ -57,32 +59,35 @@ class vslq(base_cqed):
         """
     
         # States for the qubit / shadow degrees of freedom
-        s0  = qt.basis(self.Np, 0);
-        s1  = qt.basis(self.Np, 1); 
-        s2  = qt.basis(self.Np, 2)
-        ss0 = qt.basis(self.Ns, 0);
-        ss1 = qt.basis(self.Ns, 1)
+        s0  = mops.basis(self.Np, 0);
+        s1  = mops.basis(self.Np, 1); 
+        s2  = mops.basis(self.Np, 2)
+        ss0 = mops.basis(self.Ns, 0);
+        ss1 = mops.basis(self.Ns, 1)
         
         # Compute the density matrices corresponding to the states
-        self.s1dm  = qt.ket2dm(s1); 
-        self.ss0dm = qt.ket2dm(ss0);
-        self.ss1dm = qt.ket2dm(ss1)
+        self.s1dm  = mops.ket2dm(s1); 
+        self.s2dm  = mops.ket2dm(s2); 
+        self.ss0dm = mops.ket2dm(ss0);
+        self.ss1dm = mops.ket2dm(ss1)
 
         # Define the logical states
-        self.L0 = qt.ket2dm((s2 + s0).unit())
-        self.L1 = qt.ket2dm((s2 - s1).unit())
+        self.L0 = mops.ket2dm((s2 + s0) / np.linalg.norm(s2 + s0))
+        self.L1 = mops.ket2dm((s2 - s0) / np.linalg.norm(s2 - s0))
 
 
-    def set_init_state(self, psi0=None):
+    def set_init_state(self, logical_state='L0'):
         """
         Set the initial state
         """
     
         # Initialize to a 0-logical state in the primary and shadow lattice
-        if psi0 is None:
+        if logical_state == 'L0':
             # Initial density matrix
             # psi0 = |L0> x |L0> x |0s> x | 0s>
-            self.psi0 = qt.tensor(self.L0, self.L0, self.ss0dm, self.ss0dm)
+            self.psi0 = mops.tensor(self.L0, self.L0, self.ss0dm, self.ss0dm)
+        elif logical_state == 'L1':
+            self.psi0 = mops.tensor(self.L1, self.L1, self.ss0dm, self.ss0dm)
         else:
             self.psi0 = psi0
 
@@ -94,30 +99,30 @@ class vslq(base_cqed):
         """
 
         # Identity operators
-        self.Is = qt.qeye(self.Ns)
-        self.Ip = qt.qeye(self.Np)
+        self.Is = np.eye(self.Ns)
+        self.Ip = np.eye(self.Np)
 
         # Projection operators |1Ll> <1Ll|, |1Lr> <1Lr|
-        self.Pl1 = qt.tensor(self.s1dm, self.Ip, self.Is, self.Is)
-        self.Pr1 = qt.tensor(self.Ip, self.s1dm, self.Is, self.Is)
+        self.Pl1 = mops.tensor(self.s1dm, self.Ip, self.Is, self.Is)
+        self.Pr1 = mops.tensor(self.Ip, self.s1dm, self.Is, self.Is)
 
         # Destruction operators
         ## Primary qubits
-        ap0 = qt.destroy(self.Np)
-        self.apl = qt.tensor(ap0, self.Ip, self.Is, self.Is)
-        self.apr = qt.tensor(self.Ip, ap0, self.Is, self.Is)
+        ap0 = mops.destroy(self.Np)
+        self.apl = mops.tensor(ap0, self.Ip, self.Is, self.Is)
+        self.apr = mops.tensor(self.Ip, ap0, self.Is, self.Is)
         
         ## Shadow resonators
-        as0 = qt.destroy(self.Ns)
-        self.asl = qt.tensor(self.Ip, self.Ip, as0, self.Is)
-        self.asr = qt.tensor(self.Ip, self.Ip, self.Is, as0)
+        as0 = mops.destroy(self.Ns)
+        self.asl = mops.tensor(self.Ip, self.Ip, as0, self.Is)
+        self.asr = mops.tensor(self.Ip, self.Ip, self.Is, as0)
 
         ## Two photon operators on the logical manifold
-        self.Xl = (self.apl**2 + self.apl.dag()**2) / np.sqrt(2)
-        self.Xr = (self.apr**2 + self.apr.dag()**2) / np.sqrt(2)
+        self.Xl = (self.apl**2 + mops.dag(self.apl**2)) / np.sqrt(2)
+        self.Xr = (self.apr**2 + mops.dag(self.apr**2)) / np.sqrt(2)
 
 
-    def set_H(self):
+    def set_H(self, tpts, args):
         """
         Compute the Hamiltonian in the rotating frame of the primary qubits
         """
@@ -126,24 +131,18 @@ class vslq(base_cqed):
         Hp = -self.W * self.Xl*self.Xr + 0.5*self.d*(self.Pl1 + self.Pr1)
         
         # Hs = (W + d/2) (asl^t asl + asr^t asr)
-        Hs = (self.W + self.d/2.) * (self.asl.dag()*self.asl \
-                + self.asr.dag()*self.asr)
+        Hs = (self.W + self.d/2.) * (mops.dag(self.asl)*self.asl \
+                + mops.dag(self.asr)*self.asr)
 
         # Hps = O (apl^t asl^t + apr^t asr^t + h.c.)
-        Hps = self.Om*(self.apl.dag()*self.asl.dag() \
-                + self.apr.dag()*self.asr.dag())
-        Hps += Hps.dag()
+        Hps = self.Om*(mops.dag(self.apl)*mops.dag(self.asl) \
+                + mops.dag(self.apr)*mops.dag(self.asr))
+        Hps += mops.dag(Hps)
         
         # Time independent Hamiltonian is sum of all contributions
         H0 = Hp + Hs + Hps
 
-        # Set the drive Hamiltonian
-        Hc = [(self.asl + self.asl.dag()), (self.asr + self.asr.dag())]
-
-        # Use a Gaussian pulse for now
-        Hc_str = 'A * exp(-(t - t0)**2/(2*sig**2))*cos(w*t-ph) + dc'
-
-        self.H = [H0, [[Hc[0], Hc_str], [Hc[1], Hc_str]]]
+        self.H = H0
 
 
     def get_logical_expect(self, psif):
@@ -157,13 +156,45 @@ class vslq(base_cqed):
 
         # Compute the expectation value using the states from the mesolve
         # solution, psif
-        pL_expect = qt.expect(self.pL, psif.states)
+        pL_expect = mops.expect(self.pL, psif.states)
 
         return pL_expect
 
 
+def test_vslq_dynamics():
+    """
+    Tests the dynamics of the VSLQ with no drive and initial states
+    of logical 0 or 1
+    """
+
+    # Some example settings
+    Np = 3; Ns = 2
+    W = 70.0*np.pi; delta = 700.0*np.pi; Om = 5.5; gammas = 9.2; gammap = 0;
+
+    # Set the time array
+    tpts = np.linspace(0, 2*np.pi / W, 1001)
+    dt = tpts.max() / (10 * tpts.size)
+    
+    # Create an instance of the vslq class
+    my_vslq = vslq_mops(Ns, Np, tpts, W, delta, Om, gammap, gammas)
+    my_vslq.set_init_state(logical_state='L1')
+    args = [1, tpts.max()/2, tpts.max()/12]
+    rho_out = my_vslq.run_dynamics(tpts, args, dt=dt)
+
+    # Get the expectation values for Xl and Xr
+    Xl = mops.expect(my_vslq.Xl, rho_out)
+    Xr = mops.expect(my_vslq.Xr, rho_out)
+
+    # Plot the results
+    plt.plot(tpts, Xl.real, label=r'$\Re\langle\widetilde{X}_l\rangle$')
+    plt.plot(tpts, Xl.imag, label=r'$\Im\langle\widetilde{X}_l\rangle$')
+    plt.plot(tpts, Xr.real, label=r'$\Re\langle\widetilde{X}_r\rangle$')
+    plt.plot(tpts, Xr.imag, label=r'$\Im\langle\widetilde{X}_r\rangle$')
+    plt.legend(loc='best')
+    plt.xlabel(r'Time [$\mu$s]')
+
 if __name__ == '__main__':
     
-    # Some example settings
-    N = 3; Ns = 2
-    W = 70.0*pi; delta = 700.0*pi; Ohm = 5.5; gamma_S = 9.2
+    # Test the dynamics of the vslq in different logical states
+    test_vslq_dynamics()
+

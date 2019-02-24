@@ -109,7 +109,7 @@ class base_cqed:
         return psif
 
 
-class base_cqed_mops:
+class base_cqed_mops(object):
     """
     Implements the base class for circuit QED Hamiltonians including
     time independent and time dependent Hamiltonians, using the matrix_ops
@@ -128,7 +128,7 @@ class base_cqed_mops:
 
         # Initialize the collapse operators as None
         self.cops  = None
-        self.set_ops()
+        # self.set_ops()
 
 
     def __del__(self):
