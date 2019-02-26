@@ -9,6 +9,7 @@ import matplotlib as mpl
 from matplotlib import cm
 import qutip as qt
 import datetime
+import pickle as pk
 
 
 def set_axes_fonts(ax, fsize):
@@ -383,6 +384,25 @@ def plot_io_a_full(tpts, a0_d, ae_d, a0_l, ae_l,
             format='png')
 
 
+def load_rho_from_file(fname, use_pickle=True):
+    """
+    Loads a density matrix from file and returns a numpy array with the density
+    matrix evaluated at each time
+    """
 
-def plot_phase_diagram(ag0, ae0, kappa):
-    pass
+    # Get the file extension
+    fext = fname.split()[-1]
+    
+    # Handle text file case
+    if fext == 'txt' or fext == 'csv':
+        rho = np.genfromtxt(fname)
+    elif fext == 'bin' and not use_pickle:
+        rho = np.fromfile(fname, dtype=np.complex)
+    elif fext == 'bin' and use_pickle:
+        with open(fname, 'rb') as fid:
+            rho = pk.load(fid)
+        fid.close()
+    else:
+        raise('File extension (%s) not supported.' % fext)
+
+    return rho

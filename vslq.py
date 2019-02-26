@@ -11,6 +11,7 @@ import numpy as np
 import matrix_ops as mops
 from qubit_cavity import base_cqed, base_cqed_mops
 import matplotlib.pyplot as plt
+import pickle as pk
 
 
 class vslq_mops(base_cqed_mops):
@@ -213,7 +214,6 @@ class vslq_mops_readout(base_cqed_mops):
         self.s1  = mops.basis(self.Np, 1); 
         self.s2  = mops.basis(self.Np, 2);
         self.ss0 = mops.basis(self.Ns, 0);
-        self.ss1 = mops.basis(self.Ns, 1);
         self.c0  = mops.basis(self.Nc, 0);
         
         # Compute the density matrices corresponding to the states
@@ -221,7 +221,6 @@ class vslq_mops_readout(base_cqed_mops):
         self.s1dm  = mops.ket2dm(self.s1); 
         self.s2dm  = mops.ket2dm(self.s2); 
         self.ss0dm = mops.ket2dm(self.ss0);
-        self.ss1dm = mops.ket2dm(self.ss1);
         self.c0dm  = mops.ket2dm(self.c0);
 
         # Define the logical states
@@ -237,13 +236,33 @@ class vslq_mops_readout(base_cqed_mops):
         # Initialize to a 0-logical state in the primary and shadow lattice
         if logical_state == 'L0':
             # Initial density matrix
-            # psi0 = |L0> x |L0> x |0s> x | 0s> | 0c>
+            # psi0 = |L0> x |L0> x |0s> x |0s> |0c>
             self.psi0 = mops.tensor(self.L0, self.L0, 
                                     self.ss0dm, self.ss0dm,
                                     self.c0dm)
         elif logical_state == 'L1':
-            # psi0 = |L1> x |L1> x |0s> x | 0s> | 0c>
+            # psi0 = |L1> x |L1> x |0s> x |0s> |0c>
             self.psi0 = mops.tensor(self.L1, self.L1,
+                                    self.ss0dm, self.ss0dm,
+                                    self.c0dm)
+        elif logical_state == 'l1L0':
+            # psi0 = |1> x |L0> x |0s> x |0s> |0c>
+            self.psi0 = mops.tensor(self.s1dm, self.L0,
+                                    self.ss0dm, self.ss0dm,
+                                    self.c0dm)
+        elif logical_state == 'l1L1':
+            # psi0 = |1> x |L1> x |0s> x |0s> |0c>
+            self.psi0 = mops.tensor(self.s1dm, self.L1,
+                                    self.ss0dm, self.ss0dm,
+                                    self.c0dm)
+        elif logical_state == 'r1L0':
+            # psi0 = |L0> x |1> x |0s> x |0s> |0c>
+            self.psi0 = mops.tensor(self.L0, self.s1dm,
+                                    self.ss0dm, self.ss0dm,
+                                    self.c0dm)
+        elif logical_state == 'r1L1':
+            # psi0 = |L1> x |1> x |0s> x |0s> |0c>
+            self.psi0 = mops.tensor(self.L1, self.s1dm,
                                     self.ss0dm, self.ss0dm,
                                     self.c0dm)
         else:
@@ -286,10 +305,10 @@ class vslq_mops_readout(base_cqed_mops):
         P02r = mops.tensor(self.Ip, P02, self.Is, self.Is, self.Ic)
 
         ## Projectors for |3> and |4> states of transmon
-        P33 = np.outer(mops.basis(Np, 3), mops.basis(Np, 3))
-        P44 = np.outer(mops.basis(Np, 4), mops.basis(Np, 4))
-        self.P3 = mops.tensor(P33, P33, self.Ip, self.Is, self.Ic)
-        self.P4 = mops.tensor(P44, P44, self.Ip, self.Is, self.Ic)
+        P33 = np.outer(mops.basis(self.Np, 3), mops.basis(self.Np, 3))
+        P44 = np.outer(mops.basis(self.Np, 4), mops.basis(self.Np, 4))
+        self.P3 = mops.tensor(P33, P33, self.Is, self.Is, self.Ic)
+        self.P4 = mops.tensor(P44, P44, self.Is, self.Is, self.Ic)
 
         ## Two photon operators on the logical manifold
         self.Xl = (P02l + mops.dag(P02l))
@@ -362,18 +381,18 @@ def test_vslq_readout_dynamics():
     """
 
     # Some example settings
-    Np = 5; Ns = 2; Nc = 4;
-    W = 50.0*np.pi; delta = 200.0*np.pi; Om = 5;
+    Np = 5; Ns = 2; Nc = 5;
+    W = 35*2*np.pi; delta = 350*2*np.pi; Om = 13.52;
     gammap = 0; gammas = 0; #9.2;
 
     # Set the time array
     ## Characteristic time of the shadow resonators
     TOm = 2*np.pi / Om
-    tmax = TOm 
+    tmax = 3*TOm
     
     ## Time step 1/10 of largest energy scale
     Tdhalf = 4*np.pi / delta
-    dt0 = Tdhalf / 20
+    dt0 = Tdhalf / 10
 
     ## Number of points as N = tmax / dt + 1
     Ntpts = int(np.ceil(tmax / dt0)) + 1
@@ -389,30 +408,46 @@ def test_vslq_readout_dynamics():
     ## Solve for | L0 > logical state
     my_vslq_0 = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
                  gammap, gammas, gl, gr)
-    my_vslq_0.set_init_state(logical_state='L0')
+    lstate = 'l1L0' 
+    my_vslq_0.set_init_state(logical_state=lstate)
     rho0 = my_vslq_0.run_dynamics(tpts, args, dt=dt)
+    
+    ## Write the result to file
+    with open('data/rho_vslq_%s_%.2g_us.bin' \
+            % (lstate, tmax), 'wb') as fid:
+        pk.dump(rho0, fid)
+    fid.close()
+    print('|1> |L0> result written to file.')
 
     ## Run for | L1 > state
-    # my_vslq_1 = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
-    #              gammap, gammas, gl, gr)
-    # my_vslq_1.set_init_state(logical_state='L1')
-    # rho1 = my_vslq_1.run_dynamics(tpts, args, dt=dt)
+    my_vslq_1 = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
+                 gammap, gammas, gl, gr)
+    lstate = 'l1L1'
+    my_vslq_1.set_init_state(logical_state=lstate)
+    rho1 = my_vslq_1.run_dynamics(tpts, args, dt=dt)
+    
+    ## Write the result to file
+    with open('data/rho_vslq_%s_%.2g_us.bin' \
+            % (lstate, tmax), 'wb') as fid:
+        pk.dump(rho1, fid)
+    fid.close()
+    print('|1> |L1> result written to file.')
 
     # Get the expectation values for Xl and Xr
     # Xl0 = mops.expect(my_vslq_0.Xl, rho0)
     # Xr0 = mops.expect(my_vslq_0.Xr, rho0)
     # Xl1 = mops.expect(my_vslq_1.Xl, rho1)
     # Xr1 = mops.expect(my_vslq_1.Xr, rho1)
-    P3 = mops.expect(my_vslq_0.P3, rho0)
-    P4 = mops.expect(my_vslq_0.P4, rho0)
+    # P3 = mops.expect(my_vslq_0.P3, rho0)
+    # P4 = mops.expect(my_vslq_0.P4, rho0)
     # ac0 = mops.expect(my_vslq_0.ac, rho0)
     # ac1 = mops.expect(my_vslq_1.ac, rho1)
 
     # Plot the results
-    plt.plot(tpts, P3.real, label=r'$\Re\langle P_{33}\rangle$')
-    plt.plot(tpts, P3.imag, label=r'$\Im\langle P_{33}\rangle$')
-    plt.plot(tpts, P4.real, label=r'$\Re\langle P_{44}\rangle$')
-    plt.plot(tpts, P4.imag, label=r'$\Im\langle P_{44}\rangle$')
+    # plt.plot(tpts, P3.real, label=r'$\Re\langle P_{33}\rangle$')
+    # plt.plot(tpts, P3.imag, label=r'$\Im\langle P_{33}\rangle$')
+    # plt.plot(tpts, P4.real, label=r'$\Re\langle P_{44}\rangle$')
+    # plt.plot(tpts, P4.imag, label=r'$\Im\langle P_{44}\rangle$')
     # plt.plot(ac0.real/gr, ac0.imag/gr, 'r',
     #         label=r'$\langle a_{c}\rangle / g \left| L_0 \right>$')
     # plt.plot(ac1.real/gr, ac1.imag/gr, 'b',
@@ -423,9 +458,9 @@ def test_vslq_readout_dynamics():
     # plt.plot(tpts, Xr0.real, label=r'$\Re\langle\widetilde{X}_{r0}\rangle$')
     # plt.plot(tpts, Xl1.real, label=r'$\Re\langle\widetilde{X}_{l1}\rangle$')
     # plt.plot(tpts, Xr1.real, label=r'$\Re\langle\widetilde{X}_{r1}\rangle$')
-    plt.xlabel(r'Time [$\mu$s]')
-    plt.legend(loc='best')
-    plt.tight_layout()
+    # plt.xlabel(r'Time [$\mu$s]')
+    # plt.legend(loc='best')
+    # plt.tight_layout()
 
 
 if __name__ == '__main__':
