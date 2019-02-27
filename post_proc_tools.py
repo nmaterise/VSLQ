@@ -124,7 +124,6 @@ def plot_wigner(xvec, W,
         fig.savefig('figs/wigner_%s.png' % tstamp, format='png') 
         
 
-
 def plot_expect(tpts, op_avg, op_name='',
                 tscale='ns', file_ext=None,
                 plot_phase=False):
@@ -132,7 +131,7 @@ def plot_expect(tpts, op_avg, op_name='',
     Plot the expectation value of an operator as a function of time
     """
     # Create the figure and axes
-    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6), tight_layout=True)
     fsize = 24; tsize = 26;
     set_axes_fonts(ax, fsize)
     ax.plot(tpts, np.abs(op_avg))
@@ -143,7 +142,6 @@ def plot_expect(tpts, op_avg, op_name='',
 
     ax.set_xlabel(xstr, fontsize=fsize)
     ax.set_ylabel(ystr, fontsize=fsize)
-    plt.tight_layout()
     
     # Save the figure to file
     if file_ext is not None:
@@ -153,6 +151,64 @@ def plot_expect(tpts, op_avg, op_name='',
         tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
         fig.savefig('figs/expect_%s.eps' % tstamp, format='eps') 
         fig.savefig('figs/expect_%s.png' % tstamp, format='png') 
+
+
+def plot_expect_complex_ab(op_a, op_b, 
+                            opname, snames, 
+                            fext=None, scale=1):
+    """
+    Generates the quadrature plot (Im<op> vs. Re<op>) in states |a>, |b>
+    
+    Parameters:
+    ----------
+
+    op_a, op_b:     two operators' expectation values as functions of time 
+                    for states a, b 
+    opnames:        operator name 
+    snames:         names of states corresponding to op_a, op_b
+    scale:          amount to divide real and imaginary components by
+
+    
+    """
+    # Create the figure and axes
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8),
+            tight_layout=True)
+    fsize = 24; tsize = 26; lw = 1.5;
+    set_axes_fonts(ax, fsize)
+    ax.plot(op_a.real/scale, op_a.imag/scale,
+            'r-', linewidth=lw,
+            label=r'$\left|%s\right>$' % snames[0])
+    ax.plot(op_b.real/scale, op_b.imag/scale,
+            'b-', linewidth=lw,
+            label=r'$\left|%s\right>$' % snames[1])
+
+    # Set the x/y limits
+    amax = op_a.max(); bmax = op_b.max()
+    ymax = np.abs(amax) if amax > 0 else np.nabs(amx)
+    ylim = [-1.1*ymax, 1.1*ymax]
+    xlim = ylim 
+    ax.set_xlim(xlim); ax.set_ylim(ylim)
+
+    # Set the axes labels
+    xstr = r'$\Re\langle{%s}\rangle$' % opname
+    ystr = r'$\Im\langle{%s}\rangle$' % opname
+    ax.set_xlabel(xstr, fontsize=fsize)
+    ax.set_ylabel(ystr, fontsize=fsize)
+
+    # Set the legends
+    hdls, legs = ax.get_legend_handles_labels()
+    ax.legend(hdls, legs, loc='best')
+    
+    # Save the figure to file
+    if fext is not None:
+        fig.savefig('figs/%s_expect_%s.eps' % (opname, fext), format='eps') 
+        fig.savefig('figs/%s_expect_%s.png' % (opname, fext), format='png') 
+    else:
+        tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
+        fig.savefig('figs/%s_expect_%s_%s.eps' % (opname, fext, tstamp),
+                format='eps') 
+        fig.savefig('figs/%s_expect_%s_%s.png' % (opname, fext, tstamp),
+                format='png') 
     
 
 def plot_phase_traces(tpts, adata, nkappas, drvs, kappa, tscale='ns'):
@@ -292,7 +348,6 @@ def plot_io_a(tpts, a0, ae, g, kappa, fext=''):
     hdls, legs = ax.get_legend_handles_labels()
     ax.legend(hdls, legs, loc='best')
     
-    
     # Save the result to file
     tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
     fig.savefig('figs/%s_ssfull_phase_diagram_%s.eps' % (fext, tstamp),
@@ -361,8 +416,8 @@ def plot_io_a_full(tpts, a0_d, ae_d, a0_l, ae_l,
     ax.set_xlim([-0.2, 1.25])
 
     # Set the x, y axis labels
-    ax.set_ylabel(r'$\Im\{\hat{a}\} / (g/\kappa)$', fontsize=fsize)
-    ax.set_xlabel(r'$\Re\{\hat{a}\} / (g/\kappa)$ ', fontsize=fsize)
+    ax.set_ylabel(r'$\Im\{a\} / (g/\kappa)$', fontsize=fsize)
+    ax.set_xlabel(r'$\Re\{a\} / (g/\kappa)$ ', fontsize=fsize)
     
     # Configure matplotlib to use color
     # ax.annotate(r'$\left|0\right>$', xy=(1.1, 0.2), fontsize=fsize)
@@ -382,27 +437,3 @@ def plot_io_a_full(tpts, a0_d, ae_d, a0_l, ae_l,
             format='eps')
     fig.savefig('figs/%s_ssfull_phase_diagram_%s.png' % (fext, tstamp),
             format='png')
-
-
-def load_rho_from_file(fname, use_pickle=True):
-    """
-    Loads a density matrix from file and returns a numpy array with the density
-    matrix evaluated at each time
-    """
-
-    # Get the file extension
-    fext = fname.split()[-1]
-    
-    # Handle text file case
-    if fext == 'txt' or fext == 'csv':
-        rho = np.genfromtxt(fname)
-    elif fext == 'bin' and not use_pickle:
-        rho = np.fromfile(fname, dtype=np.complex)
-    elif fext == 'bin' and use_pickle:
-        with open(fname, 'rb') as fid:
-            rho = pk.load(fid)
-        fid.close()
-    else:
-        raise('File extension (%s) not supported.' % fext)
-
-    return rho

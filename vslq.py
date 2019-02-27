@@ -305,10 +305,12 @@ class vslq_mops_readout(base_cqed_mops):
         P02r = mops.tensor(self.Ip, P02, self.Is, self.Is, self.Ic)
 
         ## Projectors for |3> and |4> states of transmon
-        P33 = np.outer(mops.basis(self.Np, 3), mops.basis(self.Np, 3))
-        P44 = np.outer(mops.basis(self.Np, 4), mops.basis(self.Np, 4))
-        self.P3 = mops.tensor(P33, P33, self.Is, self.Is, self.Ic)
-        self.P4 = mops.tensor(P44, P44, self.Is, self.Is, self.Ic)
+        P13 = np.outer(mops.basis(self.Np, 1), mops.basis(self.Np, 3))
+        P04 = np.outer(mops.basis(self.Np, 0), mops.basis(self.Np, 4))
+        P24 = np.outer(mops.basis(self.Np, 2), mops.basis(self.Np, 4))
+        self.P13 = mops.tensor(P13, P13, self.Is, self.Is, self.Ic)
+        self.P04 = mops.tensor(P04, P04, self.Is, self.Is, self.Ic)
+        self.P24 = mops.tensor(P24, P24, self.Is, self.Is, self.Ic)
 
         ## Two photon operators on the logical manifold
         self.Xl = (P02l + mops.dag(P02l))
