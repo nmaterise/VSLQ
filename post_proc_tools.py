@@ -173,7 +173,7 @@ def plot_expect_complex_ab(op_a, op_b,
     # Create the figure and axes
     fig, ax = plt.subplots(1, 1, figsize=(8, 8),
             tight_layout=True)
-    fsize = 24; tsize = 26; lw = 1.5;
+    fsize = 24; tsize = 26; lw = 1.5; lsize=20
     set_axes_fonts(ax, fsize)
     ax.plot(op_a.real/scale, op_a.imag/scale,
             'r-', linewidth=lw,
@@ -197,7 +197,7 @@ def plot_expect_complex_ab(op_a, op_b,
 
     # Set the legends
     hdls, legs = ax.get_legend_handles_labels()
-    ax.legend(hdls, legs, loc='best')
+    ax.legend(hdls, legs, loc='best', fontsize=lsize)
     
     # Save the figure to file
     if fext is not None:
