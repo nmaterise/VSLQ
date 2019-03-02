@@ -12,6 +12,7 @@ import matrix_ops as mops
 from qubit_cavity import base_cqed, base_cqed_mops
 import matplotlib.pyplot as plt
 import pickle as pk
+import multiprocessing as mp
 
 
 class vslq_mops(base_cqed_mops):
@@ -313,8 +314,12 @@ class vslq_mops_readout(base_cqed_mops):
         self.P24 = mops.tensor(P24, P24, self.Is, self.Is, self.Ic)
 
         ## Two photon operators on the logical manifold
-        self.Xl = P02l
-        self.Xr = P02r
+        # self.Xl = P02l
+        # self.Xr = P02r
+        self.Xl = (self.apl@self.apl \
+                  + mops.dag(self.apl)@mops.dag(self.apl)) / np.sqrt(2)
+        self.Xr = (self.apr@self.apr \
+                  + mops.dag(self.apr)@mops.dag(self.apr)) / np.sqrt(2)
 
 
     def set_H(self, tpts, args):
@@ -341,6 +346,84 @@ class vslq_mops_readout(base_cqed_mops):
         # Time independent Hamiltonian is sum of all contributions
         # Ignore the shadow / bath interaction for now
         self.H = Hp + Hs + Hpc
+
+
+def parfor_vslq_dynamics(Np, Ns, Nc, W, delta,
+                         Om, gammap, gammas,
+                         gl, gr,
+                         init_state, tpts, dt):
+    """
+    Parallel for loop kernel function for computing vslq dynamics
+    
+    Parameters:
+    ----------
+
+    Np, Ns, Nc:         number of primary, shadow, readout cavity levels 
+    W, delta, Om:       energy scales in the VSLQ
+    gl, gr:             coupling strengths between the readout cavity and the
+                        Xl, Xr primary qubit operators
+    gammap, gammas:     loss rates for the primary and shadow objects 
+    tpts, dt:           times to evaluate the density matrix and rk4 timestep
+    
+    Returns:
+    -------
+    
+    """
+
+    # Set default args (deprecated external drive functionality)
+    args = [1, tpts.max()/2, tpts.max()/12]
+    tmax = tpts.max()
+
+    ## Run for | L1 > state
+    my_vslq = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
+                 gammap, gammas, gl, gr)
+    my_vslq.set_init_state(logical_state=init_state)
+    print('Running dynamics with |%s> ...' % init_state)
+    rho1 = my_vslq.run_dynamics(tpts, args, dt=dt)
+    
+    ## Write the result to file
+    with open('data/rho_vslq_%s_%.2g_us.bin' \
+            % (init_state, tmax), 'wb') as fid:
+        pk.dump(rho1, fid)
+    fid.close()
+    print('|%s> result written to file.' % init_state)
+
+
+def parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
+                         Om, gammap, gammas,
+                         gl, gr,
+                         init_states, tpts, dt):
+    """
+    Creates threads for the multiprocessing module to distribute the work
+    for different instances of the same job with different inputs
+    
+    Parameters:
+    ----------
+
+    Np, Ns, Nc:         number of primary, shadow, readout cavity levels 
+    W, delta, Om:       energy scales in the VSLQ
+    gl, gr:             coupling strengths between the readout cavity and the
+                        Xl, Xr primary qubit operators
+    gammap, gammas:     loss rates for the primary and shadow objects 
+    tpts, dt:           times to evaluate the density matrix and rk4 timestep
+
+    Returns:
+    -------
+
+    """
+
+    # Create the multiprocessing pool
+    pool = mp.Pool(2)
+    nsize = len(init_states)
+    res = pool.starmap_async(parfor_vslq_dynamics,
+            zip( [Np]*nsize, [Ns]*nsize, [Nc]*nsize,[W]*nsize, [delta]*nsize,
+                         [Om]*nsize, [gammap]*nsize, [gammas]*nsize,
+                         [gl]*nsize, [gr]*nsize,
+                         init_states, [tpts]*nsize, [dt]*nsize))
+
+    # Close pool and join results
+    pool.close()
+    pool.join()
 
 
 def test_vslq_dynamics():
@@ -466,8 +549,47 @@ def test_vslq_readout_dynamics():
     print('|L1> result written to file.')
 
 
+def test_mp_vslq():
+    """
+    Use both CPU's to divide and conquer the problem
+    """
+
+    # Some example settings
+    Np = 5; Ns = 2; Nc = 5;
+    W = 35*2*np.pi; delta = 350*2*np.pi; Om = 13.52;
+    gammap = 0; gammas = 0; #9.2;
+
+    # Set the time array
+    ## Characteristic time of the shadow resonators
+    TOm = 2*np.pi / Om
+    tmax = 3*TOm 
+    
+    ## Time step 1/10 of largest energy scale
+    Tdhalf = 4*np.pi / delta
+    dt0 = Tdhalf / 10
+
+    ## Number of points as N = tmax / dt + 1
+    Ntpts = int(np.ceil(tmax / dt0)) + 1
+    print('Using multiprocessing version ...')
+    print('Running t=0 to %.2g us, %d points ...' % (tmax, Ntpts))
+    tpts = np.linspace(0, tmax, Ntpts)
+    dt = tpts.max() / (10 * tpts.size)
+
+    # Readout strengths
+    gl = W / 50; gr = gl;
+
+    # Call the multiprocess wrapper
+    init_states = ['l1L1', 'L0', 'L1']
+    parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
+                         Om, gammap, gammas,
+                         gl, gr,
+                         init_states, tpts, dt)
+
+
+
 if __name__ == '__main__':
     
     # Test the dynamics of the vslq in different logical states
     # test_vslq_dynamics()
-    test_vslq_readout_dynamics()
+    # test_vslq_readout_dynamics()
+    test_mp_vslq()

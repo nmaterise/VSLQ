@@ -229,17 +229,17 @@ def test_plot_all_expect(sname, fprefix, use_logical=True):
 if __name__ == '__main__':
     
     # Iterate over all the files and pass in labels
-    snames = ['1_lL_0', '1_lL_1', 
+    snames = ['\widetilde{L}_0', '\widetilde{L}_1', 
               'L_0L_0', 'L_1L_1']
     fprefix = ['data/rho_vslq_L0_1.4_us', 'data/rho_vslq_L1_1.4_us',
                'data/rho_vslq_l1L0_1.4_us', 'data/rho_vslq_l1L1_1.4_us']#,
                #'data/rho_vslq_l1L0_2.8_us', 'data/rho_vslq_l1L1_2.8_us']#,
     # fprefix = ['data/rho_vslq_l1L1_1.9_us']#,
                #'data/rho_vslq_L0_1.9_us',   'data/rho_vslq_L1_1.9_us']
-    # for ss, ff in zip(snames, fprefix):
-    #     test_write_exp_drv(ff)
-    #     test_plot_all_expect(ss, ff, True)
-    #     test_plot_all_expect(ss, ff, False)
+    for ss, ff in zip(snames, fprefix):
+       # test_write_exp_drv(ff)
+       test_plot_all_expect(ss, ff, True)
+       test_plot_all_expect(ss, ff, False)
     
     # Run the above code on the following test case
     test_plot_ac(1.4)
