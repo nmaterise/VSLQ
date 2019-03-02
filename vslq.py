@@ -300,7 +300,7 @@ class vslq_mops_readout(base_cqed_mops):
         self.ac = mops.tensor(self.Ip, self.Ip, self.Is, self.Is, ac0)
 
         ## Projectors |0><2| + |2><0| for left and right qubits
-        P02 = np.outer(self.s0, self.s2)
+        P02 = np.outer(self.s0, self.s2) + np.outer(self.s2, self.s0)
         P02l = mops.tensor(P02, self.Ip, self.Is, self.Is, self.Ic)
         P02r = mops.tensor(self.Ip, P02, self.Is, self.Is, self.Ic)
 
@@ -313,8 +313,8 @@ class vslq_mops_readout(base_cqed_mops):
         self.P24 = mops.tensor(P24, P24, self.Is, self.Is, self.Ic)
 
         ## Two photon operators on the logical manifold
-        self.Xl = (P02l + mops.dag(P02l))
-        self.Xr = (P02r + mops.dag(P02r))
+        self.Xl = P02l
+        self.Xr = P02r
 
 
     def set_H(self, tpts, args):
@@ -339,7 +339,8 @@ class vslq_mops_readout(base_cqed_mops):
             + self.gr * (self.ac + mops.dag(self.ac)) @ self.Xr
         
         # Time independent Hamiltonian is sum of all contributions
-        self.H = Hp + Hs + Hps + Hpc
+        # Ignore the shadow / bath interaction for now
+        self.H = Hp + Hs + Hpc
 
 
 def test_vslq_dynamics():
@@ -390,7 +391,7 @@ def test_vslq_readout_dynamics():
     # Set the time array
     ## Characteristic time of the shadow resonators
     TOm = 2*np.pi / Om
-    tmax = 3*TOm
+    tmax = 3*TOm 
     
     ## Time step 1/10 of largest energy scale
     Tdhalf = 4*np.pi / delta
@@ -407,6 +408,7 @@ def test_vslq_readout_dynamics():
 
     # Create an instance of the vslq class
     args = [1, tpts.max()/2, tpts.max()/12]
+
     ## Solve for | L0 > logical state
     my_vslq_0 = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
                  gammap, gammas, gl, gr)
@@ -435,34 +437,33 @@ def test_vslq_readout_dynamics():
     fid.close()
     print('|1> |L1> result written to file.')
 
-    # Get the expectation values for Xl and Xr
-    # Xl0 = mops.expect(my_vslq_0.Xl, rho0)
-    # Xr0 = mops.expect(my_vslq_0.Xr, rho0)
-    # Xl1 = mops.expect(my_vslq_1.Xl, rho1)
-    # Xr1 = mops.expect(my_vslq_1.Xr, rho1)
-    # P3 = mops.expect(my_vslq_0.P3, rho0)
-    # P4 = mops.expect(my_vslq_0.P4, rho0)
-    # ac0 = mops.expect(my_vslq_0.ac, rho0)
-    # ac1 = mops.expect(my_vslq_1.ac, rho1)
+    ## Solve for | L0 > logical state
+    my_vslq_0 = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
+                 gammap, gammas, gl, gr)
+    lstate = 'L0' 
+    my_vslq_0.set_init_state(logical_state=lstate)
+    rho0 = my_vslq_0.run_dynamics(tpts, args, dt=dt)
+    
+    ## Write the result to file
+    with open('data/rho_vslq_%s_%.2g_us.bin' \
+            % (lstate, tmax), 'wb') as fid:
+        pk.dump(rho0, fid)
+    fid.close()
+    print('|L0> result written to file.')
 
-    # Plot the results
-    # plt.plot(tpts, P3.real, label=r'$\Re\langle P_{33}\rangle$')
-    # plt.plot(tpts, P3.imag, label=r'$\Im\langle P_{33}\rangle$')
-    # plt.plot(tpts, P4.real, label=r'$\Re\langle P_{44}\rangle$')
-    # plt.plot(tpts, P4.imag, label=r'$\Im\langle P_{44}\rangle$')
-    # plt.plot(ac0.real/gr, ac0.imag/gr, 'r',
-    #         label=r'$\langle a_{c}\rangle / g \left| L_0 \right>$')
-    # plt.plot(ac1.real/gr, ac1.imag/gr, 'b',
-    #         label=r'$\langle a_{c}\rangle / g \left| L_1 \right>$')
-    # plt.xlabel(r'$\Re\langle a_c\rangle$')
-    # plt.ylabel(r'$\Im\langle a_c\rangle$')
-    # plt.plot(tpts, Xl0.real, label=r'$\Re\langle\widetilde{X}_{l0}\rangle$')
-    # plt.plot(tpts, Xr0.real, label=r'$\Re\langle\widetilde{X}_{r0}\rangle$')
-    # plt.plot(tpts, Xl1.real, label=r'$\Re\langle\widetilde{X}_{l1}\rangle$')
-    # plt.plot(tpts, Xr1.real, label=r'$\Re\langle\widetilde{X}_{r1}\rangle$')
-    # plt.xlabel(r'Time [$\mu$s]')
-    # plt.legend(loc='best')
-    # plt.tight_layout()
+    ## Run for | L1 > state
+    my_vslq_1 = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
+                 gammap, gammas, gl, gr)
+    lstate = 'L1'
+    my_vslq_1.set_init_state(logical_state=lstate)
+    rho1 = my_vslq_1.run_dynamics(tpts, args, dt=dt)
+    
+    ## Write the result to file
+    with open('data/rho_vslq_%s_%.2g_us.bin' \
+            % (lstate, tmax), 'wb') as fid:
+        pk.dump(rho1, fid)
+    fid.close()
+    print('|L1> result written to file.')
 
 
 if __name__ == '__main__':
@@ -470,4 +471,3 @@ if __name__ == '__main__':
     # Test the dynamics of the vslq in different logical states
     # test_vslq_dynamics()
     test_vslq_readout_dynamics()
-

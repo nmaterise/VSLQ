@@ -152,6 +152,70 @@ def plot_expect(tpts, op_avg, op_name='',
         fig.savefig('figs/expect_%s.eps' % tstamp, format='eps') 
         fig.savefig('figs/expect_%s.png' % tstamp, format='png') 
 
+def plot_expect_phase_ab(tpts, op_a, op_b, 
+                            opname, snames, 
+                            fext=None, scale=1):
+    """
+    Generates the quadrature plot (Im<op> vs. Re<op>) in states |a>, |b>
+    
+    Parameters:
+    ----------
+
+    op_a, op_b:     two operators' expectation values as functions of time 
+                    for states a, b 
+    opnames:        operator name 
+    snames:         names of states corresponding to op_a, op_b
+    scale:          amount to divide real and imaginary components by
+
+    
+    """
+    # Create the figure and axes
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8),
+            tight_layout=True)
+    fsize = 24; tsize = 26; lw = 1.5; lsize=20
+    set_axes_fonts(ax, fsize)
+    ax.plot(tpts, np.unwrap(np.angle(op_a)),
+            'ro-', linewidth=lw,
+            label=r'$\left|%s\right>$' % snames[0])
+    ax.plot(tpts, np.unwrap(np.angle(op_b)),
+            'bo-', linewidth=lw,
+            label=r'$\left|%s\right>$' % snames[1])
+
+    # Set the x/y limits
+    amax = op_a.max(); bmax = op_b.max()
+    ymax = np.abs(amax) if amax > 0 else np.nabs(amx)
+    ylim = [-1.2, 1.2]
+    xlim = ylim 
+    ax.set_xlim(xlim); ax.set_ylim(ylim)
+
+    # Set the axes labels
+    xstr = r'$\Re\langle{%s}\rangle$' % opname
+    ystr = r'$\Im\langle{%s}\rangle$' % opname
+    ax.set_xlabel(xstr, fontsize=fsize)
+    ax.set_ylabel(ystr, fontsize=fsize)
+
+    # Add annotation arrows
+    # ax.annotate(r'$t$', xy=(0.1, 0.5), xytext=(0.1, 0.1),
+    #         arrowprops=dict(arrowstyle='->'))
+    # ax.annotate(r'$t$', xy=(0.1, -0.5), xytext=(0.1, -0.1),
+    #         arrowprops=dict(arrowstyle='->'))
+
+    # Set the legends
+    hdls, legs = ax.get_legend_handles_labels()
+    ax.legend(hdls, legs, loc='best', fontsize=lsize)
+    
+    # Save the figure to file
+    if fext is not None:
+        fig.savefig('figs/%s_expect_phase_%s.eps' \
+                % (opname, fext), format='eps') 
+        fig.savefig('figs/%s_expect_phase_%s.png' \
+                % (opname, fext), format='png') 
+    else:
+        tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
+        fig.savefig('figs/%s_expect_phase_%s_%s.eps' % (opname, fext, tstamp),
+                format='eps') 
+        fig.savefig('figs/%s_expect_phase_%s_%s.png' % (opname, fext, tstamp),
+                format='png') 
 
 def plot_expect_complex_ab(op_a, op_b, 
                             opname, snames, 
@@ -176,16 +240,16 @@ def plot_expect_complex_ab(op_a, op_b,
     fsize = 24; tsize = 26; lw = 1.5; lsize=20
     set_axes_fonts(ax, fsize)
     ax.plot(op_a.real/scale, op_a.imag/scale,
-            'r-', linewidth=lw,
+            'ro-', linewidth=lw,
             label=r'$\left|%s\right>$' % snames[0])
     ax.plot(op_b.real/scale, op_b.imag/scale,
-            'b-', linewidth=lw,
+            'bo-', linewidth=lw,
             label=r'$\left|%s\right>$' % snames[1])
 
     # Set the x/y limits
     amax = op_a.max(); bmax = op_b.max()
-    ymax = np.abs(amax) if amax > 0 else np.nabs(amx)
-    ylim = [-1.1*ymax, 1.1*ymax]
+    ymax = np.abs(amax) if amax > 0 else np.abs(amax)
+    ylim = [-1.2, 1.2]
     xlim = ylim 
     ax.set_xlim(xlim); ax.set_ylim(ylim)
 
@@ -194,6 +258,12 @@ def plot_expect_complex_ab(op_a, op_b,
     ystr = r'$\Im\langle{%s}\rangle$' % opname
     ax.set_xlabel(xstr, fontsize=fsize)
     ax.set_ylabel(ystr, fontsize=fsize)
+
+    # Add annotation arrows
+    # ax.annotate(r'$t$', xy=(0.1, 0.5), xytext=(0.1, 0.1),
+    #         arrowprops=dict(arrowstyle='->'))
+    # ax.annotate(r'$t$', xy=(0.1, -0.5), xytext=(0.1, -0.1),
+    #         arrowprops=dict(arrowstyle='->'))
 
     # Set the legends
     hdls, legs = ax.get_legend_handles_labels()
