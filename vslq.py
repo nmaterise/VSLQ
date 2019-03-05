@@ -203,6 +203,9 @@ class vslq_mops_readout(base_cqed_mops):
         self.set_cops([self.gammas, self.gammas, self.gammap, self.gammap],
                       [self.asl, self.asr, self.apl, self.apr])
         self.set_init_state()
+        
+        # Set the projection operators
+        self.set_proj_ops()
 
 
     def set_states(self):
@@ -269,6 +272,94 @@ class vslq_mops_readout(base_cqed_mops):
         else:
             self.psi0 = psi0
 
+    def is_ket(self, ket):
+        """
+        Checks if a numpy array is a ket vector
+        """
+        
+        # Get the dimensions nrows x mcols
+        dims = np.shape(ket)
+        
+        # Check the number of columns
+        if dims[1] == 1:
+            return True
+        else:
+            return False
+
+
+    def get_proj_k(self, ket, is_log_state=False, num_st_idx=4):
+        """
+        Get the projection operator corresponding to occupation of the
+        state |k> by subtracting off the other state (s)
+        """
+
+        # Identity for full Hilbert space
+        I = mops.tensor(self.Ip, self.Ip, self.Is, self.Is, self.Ic)
+
+        
+        # Cover the logical and the error state cases
+        if is_log_state:
+
+            # Get logical state projectors, Pl, Pr
+            L0 = (self.s2 + self.s0) / np.sqrt(2)
+            kl = mops.tensor(L0, self.s0, self.ss0, self.ss0, self.c0)
+            kr = mops.tensor(self.s0, L0, self.ss0, self.ss0, self.c0)
+            Pl = mops.ket2dm(kl)
+            Pr = mops.ket2dm(kr)
+
+            Pk = self.Xl @ (I + self.Xl @ self.Xr) @ (I - Pl) @ (I - Pr) / 2
+
+        # cover the error state case
+        else:
+
+            # Compute base projector
+            Pk = mops.ket2dm(mops.tensor(ket,
+                            self.s0, self.ss0,
+                            self.ss0, self.c0))\
+                        if self.is_ket(ket) else \
+                            mops.tensor(ket,
+                            self.s0, self.ss0,
+                            self.ss0, self.c0)
+            Pk = Pk @ (I + Pk)
+        
+            # Iterate over all Fock states
+            for j in range(0, self.Np):
+                if j != num_st_idx:
+                    # Compute the jth Fock state
+                    kjl = mops.tensor(mops.basis(self.Np, j),
+                            self.s0, self.ss0,
+                            self.ss0, self.c0)
+                    kjr = mops.tensor(self.s0,
+                            mops.basis(self.Np, j), self.ss0,
+                            self.ss0, self.c0)
+
+                    # Compute the new projectors
+                    Pkjl = mops.ket2dm(kjl)
+                    Pkjr = mops.ket2dm(kjr)
+                    
+                    # Multiply by the subtracted off projectors 
+                    Pk = Pk @ (I - Pkjl) @ (I - Pkjr)
+    
+            # Normalize the resulting projector
+            Pk /= np.linalg.norm(Pk)
+
+        return Pk        
+
+    
+    def set_proj_ops(self):
+        """
+        Sets projection operators for the leakage states and the logical
+        states to compute the probability of occupying unwanted states
+        """
+
+        # Compute the logical states first
+        self.PXlXr = self.get_proj_k(self.L0, True)
+
+        # Set self.Pj for probability of occupying |j>
+        for j in range(0, self.Np):
+            setattr(self, 'P%d' % j, self.get_proj_k(mops.basis(self.Np, j),
+                        False, j))
+    
 
     def set_ops(self):
         """
@@ -299,19 +390,6 @@ class vslq_mops_readout(base_cqed_mops):
         ## Cavity resonator
         ac0 = mops.destroy(self.Nc)
         self.ac = mops.tensor(self.Ip, self.Ip, self.Is, self.Is, ac0)
-
-        ## Projectors |0><2| + |2><0| for left and right qubits
-        P02 = np.outer(self.s0, self.s2) + np.outer(self.s2, self.s0)
-        P02l = mops.tensor(P02, self.Ip, self.Is, self.Is, self.Ic)
-        P02r = mops.tensor(self.Ip, P02, self.Is, self.Is, self.Ic)
-
-        ## Projectors for |3> and |4> states of transmon
-        P13 = np.outer(mops.basis(self.Np, 1), mops.basis(self.Np, 3))
-        P04 = np.outer(mops.basis(self.Np, 0), mops.basis(self.Np, 4))
-        P24 = np.outer(mops.basis(self.Np, 2), mops.basis(self.Np, 4))
-        self.P13 = mops.tensor(P13, P13, self.Is, self.Is, self.Ic)
-        self.P04 = mops.tensor(P04, P04, self.Is, self.Is, self.Ic)
-        self.P24 = mops.tensor(P24, P24, self.Is, self.Is, self.Ic)
 
         ## Two photon operators on the logical manifold
         # self.Xl = P02l
@@ -422,6 +500,7 @@ def parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
                          init_states, [tpts]*nsize, [dt]*nsize))
 
     # Close pool and join results
+    print('Releasing multiprocessing pool ...')
     pool.close()
     pool.join()
 
@@ -585,6 +664,34 @@ def test_mp_vslq():
                          gl, gr,
                          init_states, tpts, dt)
 
+def test_proj():
+    """
+    Initialize a vslq object to check if the new projectors are set correectly
+    """
+
+    # Some example settings
+    Np = 5; Ns = 2; Nc = 5;
+    W = 35*2*np.pi; delta = 350*2*np.pi; Om = 13.52;
+    gammap = 0; gammas = 0; #9.2;
+
+    # Set the time array
+    ## Characteristic time of the shadow resonators
+    TOm = 2*np.pi / Om
+    tmax = 3*TOm 
+    
+    ## Time step 1/10 of largest energy scale
+    Tdhalf = 4*np.pi / delta
+    dt0 = Tdhalf / 10
+
+    ## Number of points as N = tmax / dt + 1
+    Ntpts = int(np.ceil(tmax / dt0)) + 1
+    tpts = np.linspace(0, tmax, Ntpts)
+    dt = tpts.max() / (10 * tpts.size)
+
+    # Readout strengths
+    gl = W / 50; gr = gl;
+    my_vslq_1 = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
+                 gammap, gammas, gl, gr)
 
 
 if __name__ == '__main__':
@@ -592,4 +699,5 @@ if __name__ == '__main__':
     # Test the dynamics of the vslq in different logical states
     # test_vslq_dynamics()
     # test_vslq_readout_dynamics()
-    test_mp_vslq()
+    # test_mp_vslq()
+    test_proj()

@@ -11,6 +11,7 @@ import time
 from vslq import vslq_mops_readout
 import post_proc_tools as ppt
 import matrix_ops as mops
+import re as regex
 
 
 def parfor_expect(opp, vslq_obj, rho, pre0, pre1):
@@ -61,16 +62,6 @@ def write_expect(rho_fname, Ns, Np, Nc, ops=['']):
     vslq_obj = vslq_mops_readout(Ns, Np, Nc, np.zeros(10), 0, 0,
                                 0, 0, 0, 0, 0)
 
-    # Code to send a thread pool to attack the expectation values
-    """
-    pool = mp.Pool(2)
-    nsize = len(ops)
-    res = pool.starmap_async(parfor_expect,
-            zip(ops, [my_vslq_obj]*nsize, [rho]*nsize,
-                [prefix0]*nsize, [prefix2]*nsize
-                ))
-    """
-
     # Loop over the operators in the list
     for opp in ops:
     
@@ -87,7 +78,7 @@ def write_expect(rho_fname, Ns, Np, Nc, ops=['']):
         with open(op_fname, 'wb') as fid:
             pk.dump(op_exp, fid)
         fid.close() 
-     
+
 
 def write_expect_driver(fname):
     """
@@ -98,7 +89,10 @@ def write_expect_driver(fname):
     Np = 5; Ns = 2; Nc = 5;
 
     # Operators to average
-    ops = ['ac', 'P13', 'P04', 'P24', 'Xl', 'Xr']
+    # ops = ['ac', 'P13', 'P04', 'P24', 'Xl', 'Xr']
+    ops = ['P%d' % i for i in range(0, Np)]
+    ops.append('ac')
+    ops.append('PXlXr') 
     # ops = ['ac']
     write_expect(fname, Ns, Np, Nc, ops)
 
@@ -128,15 +122,15 @@ def plot_ac(tpts, fnames, snames, fext):
     
     # Plot the results
     ppt.plot_expect_complex_ab(a0[0::100], a1[0::100], 'a_c', snames, fext)
-    # ppt.plot_expect_phase_ab(tpts[0::100], a0[0::100], 
-    #         a1[0::100], 'a_c', snames, fext)
-    
 
 
 def test_plot_ac(ttt):
     """
     Plot the cavity field for different logical states
     """
+    # VSLQ Hilbert space 
+    Np = 5; Ns = 2; Nc = 5;
+
     # Use the time points from the original simulation
     W = 35*2*np.pi; delta = 350*2*np.pi; Om = 13.52;
     gammap = 0; gammas = 0; #9.2;
@@ -172,6 +166,9 @@ def test_plot_all_expect(sname, fprefix, use_logical=True):
     Plot the expectation values vs. time
     """
 
+    # VSLQ Hilbert space 
+    Np = 5; Ns = 2; Nc = 5;
+
     # Use the time points from the original simulation
     W = 35*2*np.pi; delta = 350*2*np.pi; Om = 13.52;
     gammap = 0; gammas = 0; #9.2;
@@ -197,17 +194,21 @@ def test_plot_all_expect(sname, fprefix, use_logical=True):
 
     # Read in the expecatation values from file
     if use_logical:
-        oplist = ['P13', 'P04', 'P24', 'Xl', 'Xr']
+        oplist = ['P%d' % i for i in range(0, Np)]
+        oplist.append('PXlXr') 
         fstr = 'full'
     else:
-        oplist = ['P13', 'P04', 'P24']
+        oplist = ['P%d' % i for i in range(0, Np)]
         fstr = 'zoom'
 
     for op in oplist:
         fname = '%s_%s.bin' % (fprefix, op)
         with open(fname, 'rb') as fid:
             opdata = pk.load(fid)
-        ax.plot(tpts, opdata.real, label=r'$\langle{%s}\rangle$' % op,
+        
+        plabel = regex.findall('\d+', op)[-1] if regex.findall('\d+', op) != []\
+                else op
+        ax.plot(tpts, opdata.real, label=r'$\langle{%s}\rangle$' % plabel,
                 linewidth=lw)
 
     # Set the axes labels
@@ -231,13 +232,18 @@ if __name__ == '__main__':
     # Iterate over all the files and pass in labels
     snames = ['\widetilde{L}_0', '\widetilde{L}_1', 
               'L_0L_0', 'L_1L_1']
+    # snames = ['L_0L_0', 'L_1L_1']
     fprefix = ['data/rho_vslq_L0_1.4_us', 'data/rho_vslq_L1_1.4_us',
                'data/rho_vslq_l1L0_1.4_us', 'data/rho_vslq_l1L1_1.4_us']#,
+    fprefix = ['data/rho_vslq_L1_1.4_us',
+               'data/rho_vslq_l1L0_1.4_us', 'data/rho_vslq_l1L1_1.4_us']#,
+    fprefix = ['data/rho_vslq_L0_1.4_us']#,
+    # fprefix = ['data/rho_vslq_L0_1.4_us', 'data/rho_vslq_L1_1.4_us']
                #'data/rho_vslq_l1L0_2.8_us', 'data/rho_vslq_l1L1_2.8_us']#,
     # fprefix = ['data/rho_vslq_l1L1_1.9_us']#,
                #'data/rho_vslq_L0_1.9_us',   'data/rho_vslq_L1_1.9_us']
     for ss, ff in zip(snames, fprefix):
-       # test_write_exp_drv(ff)
+       test_write_exp_drv(ff)
        test_plot_all_expect(ss, ff, True)
        test_plot_all_expect(ss, ff, False)
     
