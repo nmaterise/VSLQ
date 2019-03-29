@@ -121,7 +121,8 @@ def plot_ac(tpts, fnames, snames, fext):
         a1 = pk.load(fid)
     
     # Plot the results
-    ppt.plot_expect_complex_ab(a0[0::100], a1[0::100], 'a_c', snames, fext)
+    ppt.plot_expect_complex_ab(a0[0::100], a1[0::100], 'a_c', snames, fext,
+            scale=0.5)
 
 
 def test_plot_ac(ttt):
@@ -151,13 +152,13 @@ def test_plot_ac(ttt):
     # First plot the logical state, then the photon loss states
     fnames = ['data/rho_vslq_L0_%.1f_us_ac.bin' % ttt,
               'data/rho_vslq_L1_%.1f_us_ac.bin' % ttt ]
-    snames = ['L_0, L_0', 'L_1, L_1']
+    snames = ['L_0', 'L_1']
     plot_ac(tpts, fnames, snames, 'L0L1')
 
     # First plot the logical state, then the photon loss states
     fnames = ['data/rho_vslq_l1L0_%.1f_us_ac.bin' % ttt,
               'data/rho_vslq_l1L1_%.1f_us_ac.bin' % ttt]
-    snames = ['1_l, L_0', '1_l, L_1']
+    snames = ['\widetilde{L}_0', '\widetilde{L}_1']
     plot_ac(tpts, fnames, snames, 'l1L0l1L1')
 
 
@@ -201,24 +202,29 @@ def test_plot_all_expect(sname, fprefix, use_logical=True):
         oplist = ['P%d' % i for i in range(0, Np)]
         fstr = 'zoom'
 
+    # Iterate over all of the operators whose expectation
+    # values we have calculated
     for op in oplist:
         fname = '%s_%s.bin' % (fprefix, op)
         with open(fname, 'rb') as fid:
             opdata = pk.load(fid)
         
+        # Set the label for the legends
         plabel = regex.findall('\d+', op)[-1] if regex.findall('\d+', op) != []\
                 else op
-        ax.plot(tpts, opdata.real, label=r'$\langle{%s}\rangle$' % plabel,
+        if op == 'PXlXr':
+            plabel = r'L_0'
+        ax.plot(tpts, opdata.real, label=r'$\left|{%s}\right>$' % plabel,
                 linewidth=lw)
 
     # Set the axes labels
     ax.set_xlabel(r'Time [$\mu$s]', fontsize=fsize)
     ax.set_ylabel('Expectation Value', fontsize=fsize)
-    ax.set_title(r'Initial State ($\left|%s\right>$)' % sname, fontsize=fsize)
+    ax.set_title(r'Initial State ($\left|{%s}\right>$)' % sname, fontsize=fsize)
 
     # Set the legends
     hdls, legs = ax.get_legend_handles_labels()
-    ax.legend(hdls, legs, loc='best', fontsize=lsize)
+    ax.legend(hdls, legs, loc='best', fontsize=fsize)
 
     # Save the figure to file
     fig.savefig('figs/logical_expect_leakage_%s_%s.eps' % (sname, fstr),
@@ -231,22 +237,22 @@ if __name__ == '__main__':
     
     # Iterate over all the files and pass in labels
     snames = ['\widetilde{L}_0', '\widetilde{L}_1', 
-              'L_0L_0', 'L_1L_1']
+              'L_0', 'L_1']
     # snames = ['L_0L_0', 'L_1L_1']
     fprefix = ['data/rho_vslq_L0_1.4_us', 'data/rho_vslq_L1_1.4_us',
                'data/rho_vslq_l1L0_1.4_us', 'data/rho_vslq_l1L1_1.4_us']#,
-    fprefix = ['data/rho_vslq_L1_1.4_us',
-               'data/rho_vslq_l1L0_1.4_us', 'data/rho_vslq_l1L1_1.4_us']#,
-    fprefix = ['data/rho_vslq_L0_1.4_us']#,
+    # fprefix = ['data/rho_vslq_L1_1.4_us',
+    #            'data/rho_vslq_l1L0_1.4_us', 'data/rho_vslq_l1L1_1.4_us']#,
+    # fprefix = ['data/rho_vslq_L0_1.4_us']#,
     # fprefix = ['data/rho_vslq_L0_1.4_us', 'data/rho_vslq_L1_1.4_us']
                #'data/rho_vslq_l1L0_2.8_us', 'data/rho_vslq_l1L1_2.8_us']#,
     # fprefix = ['data/rho_vslq_l1L1_1.9_us']#,
                #'data/rho_vslq_L0_1.9_us',   'data/rho_vslq_L1_1.9_us']
     for ss, ff in zip(snames, fprefix):
-       test_write_exp_drv(ff)
+       # test_write_exp_drv(ff)
        test_plot_all_expect(ss, ff, True)
        test_plot_all_expect(ss, ff, False)
     
     # Run the above code on the following test case
-    test_plot_ac(1.4)
+    # test_plot_ac(1.4)
 

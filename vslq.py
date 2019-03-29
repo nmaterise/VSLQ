@@ -295,19 +295,20 @@ class vslq_mops_readout(base_cqed_mops):
 
         # Identity for full Hilbert space
         I = mops.tensor(self.Ip, self.Ip, self.Is, self.Is, self.Ic)
-
+        I = np.ones(self.Xl.shape[-1])
         
         # Cover the logical and the error state cases
         if is_log_state:
 
             # Get logical state projectors, Pl, Pr
             L0 = (self.s2 + self.s0) / np.sqrt(2)
-            kl = mops.tensor(L0, self.s0, self.ss0, self.ss0, self.c0)
-            kr = mops.tensor(self.s0, L0, self.ss0, self.ss0, self.c0)
+            kl = mops.tensor(L0, self.s1, self.ss0, self.ss0, self.c0)
+            kr = mops.tensor(self.s1, L0, self.ss0, self.ss0, self.c0)
             Pl = mops.ket2dm(kl)
             Pr = mops.ket2dm(kr)
 
             Pk = self.Xl @ (I + self.Xl @ self.Xr) @ (I - Pl) @ (I - Pr) / 2
+            Pk = self.Xl @ self.Xr
 
         # cover the error state case
         else:
@@ -342,6 +343,11 @@ class vslq_mops_readout(base_cqed_mops):
     
             # Normalize the resulting projector
             Pk /= np.linalg.norm(Pk)
+            kjl = mops.tensor(mops.basis(self.Np, num_st_idx),
+                            self.s0, self.ss0,
+                            self.ss0, self.c0)
+
+            Pk = mops.ket2dm(kjl)
 
         return Pk        
 

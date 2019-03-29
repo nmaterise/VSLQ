@@ -241,10 +241,10 @@ def plot_expect_complex_ab(op_a, op_b,
     set_axes_fonts(ax, fsize)
     ax.plot(op_a.real/scale, op_a.imag/scale,
             'ro-', linewidth=lw,
-            label=r'$\left|%s\right>$' % snames[0])
+            label=r'$\left|{%s}\right>$' % snames[0])
     ax.plot(op_b.real/scale, op_b.imag/scale,
             'bo-', linewidth=lw,
-            label=r'$\left|%s\right>$' % snames[1])
+            label=r'$\left|{%s}\right>$' % snames[1])
 
     # Set the x/y limits
     amax = op_a.max(); bmax = op_b.max()
