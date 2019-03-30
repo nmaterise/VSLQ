@@ -6,6 +6,7 @@ involving N-particles
 """
 
 import numpy as np
+import math
 
 
 def destroy(N):
@@ -67,6 +68,22 @@ def basis(N, M):
     return vec
 
 
+def coherent(N, alpha):
+    """
+    Returns a coherent state approximated to N photons
+    """
+
+    # Initialize the state
+    alpha_ket = np.zeros([N, 1], dtype=np.complex128)
+    
+    # Compute the remaining terms
+    for n in range(N):
+        alpha_ket += basis(N, n)*np.exp(-np.abs(alpha)**2)*alpha**n\
+                     / math.factorial(n)
+
+    return alpha_ket
+
+
 def tensor(*args):
     """
     Tensor product of variable number of operators
@@ -118,8 +135,7 @@ def expect(op, rho):
     # Convert the density matrix to a numpy array if needed
     rho = np.asarray(rho)            
 
-    return np.array([np.trace(rho[i,:,:] @ op) \
-            for i in range(np.shape(rho)[0]) ])
+    return np.array([np.trace(op @ rho[i]) for i in range(rho.shape[0])])
 
 
 def comm(a, b, sign='-'):
@@ -143,6 +159,6 @@ def comm(a, b, sign='-'):
     if sign == '-':
         return a@b - b@a
     
-    # Return the 
+    # Return the anticommutator
     elif sign == '+':
         return a@b + b@a

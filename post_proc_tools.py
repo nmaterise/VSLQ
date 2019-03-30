@@ -146,11 +146,9 @@ def plot_expect(tpts, op_avg, op_name='',
     # Save the figure to file
     if file_ext is not None:
         fig.savefig('figs/expect_%s.eps' % file_ext, format='eps') 
-        fig.savefig('figs/expect_%s.png' % file_ext, format='png') 
     else:
         tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
         fig.savefig('figs/expect_%s.eps' % tstamp, format='eps') 
-        fig.savefig('figs/expect_%s.png' % tstamp, format='png') 
 
 def plot_expect_phase_ab(tpts, op_a, op_b, 
                             opname, snames, 

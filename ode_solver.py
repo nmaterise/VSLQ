@@ -16,6 +16,7 @@ import traceback
 # Set for the runtime warnings
 np.seterr(all='raise')
 
+
 class rk4:
     """
     Runge-Kutta 4 class
@@ -167,7 +168,8 @@ class mesolve_rk4(rk4):
         elif H.__class__ == np.ndarray and rho.__class__ == np.ndarray:
 
             # Just calculate the commutator
-            Hcommrho = -1j*comm(H, rho)
+            # Hcommrho = -1j*comm(H, rho)
+            Hcommrho = -1j * (H@rho - rho@H)
 
         ## Numpy array equivalent calculations of commutators
         elif H.__class__ == list and rho.__class__ == np.ndarray:
@@ -181,7 +183,11 @@ class mesolve_rk4(rk4):
             Hcommrho *= -1j
 
         ## Compute the dissipator terms
-        Dterms = 0*np.sum([D(ck, rho) for ck in cops])
+        Dterms = np.zeros(rho.shape, dtype=np.complex128)
+        for ck in cops:
+            # Dterms += D(ck, rho)
+            Dterms += ck @ rho @ ck - 0.5 * (mops.dag(ck)@ck@rho \
+                        + rho@mops.dag(ck)@ck)
 
         ## Return the result as a dense matrix
         ## Use the numpy array convention to 
@@ -201,7 +207,8 @@ class mesolve_rk4(rk4):
 
     def mesolve(self):
         """
-        Run the rk4 solver, providing the interpolated time-dependent drive terms
+        Run the rk4 solver, providing the interpolated 
+        time-dependent drive terms
         """
 
         # Handle the simple, time-independent case
@@ -285,7 +292,7 @@ class langevin_rk4(rk4):
 
     def langevin_solve(self):
         """
-        Run the rk4 solver, providing the interpolated time-dependent drive terms
+        Langevin solver wrapper for langevin_rk4()
         """
 
         # Compute the resultant cavity mode
@@ -358,7 +365,8 @@ def test_mesolve_mops():
     
     # Time dependent Hamiltonian
     Hc = (a + mops.dag(a))
-    # Hd = np.exp(-(tpts - tpts.max()/2)**2/(2*tpts.max()/6)**2) * np.sin(wc*tpts)
+    # Hd = np.exp(-(tpts - tpts.max()/2)**2/(2*tpts.max()/6)**2) \
+    # * np.sin(wc*tpts)
     # In rotating frame
     Hd = np.exp(-(tpts - tpts.max()/2)**2/(tpts.max()/6)**2)
 
@@ -386,7 +394,8 @@ def test_mesolve_mops():
 
 def test_langevin_solve():
     """
-    Tests the Langevin equation solver for the longitudinal case in Didier, 2015
+    Tests the Langevin equation solver for the
+    longitudinal case in Didier, 2015
     """
 
 
@@ -407,15 +416,19 @@ def test_langevin_solve():
 
     # Setup the master equation solver instance
     ## Solve the dispersive case first
-    le_rk4 = langevin_rk4(a0g, tpts, dt, ain, kappa, sz0g, 40*chi, eq_type='disp') 
+    le_rk4 = langevin_rk4(a0g, tpts, dt, ain, 
+            kappa, sz0g, 40*chi, eq_type='disp') 
     ag_disp = le_rk4.langevin_solve()
-    le_rk4 = langevin_rk4(a0e, tpts, dt, ain, kappa, sz0e, 40*chi, eq_type='disp') 
+    le_rk4 = langevin_rk4(a0e, tpts, dt, ain,
+            kappa, sz0e, 40*chi, eq_type='disp') 
     ae_disp = le_rk4.langevin_solve()
 
     ## Solve the longitudinal case next
-    le_rk4 = langevin_rk4(a0g, tpts, dt, 0*ain, kappa, sz0g, gz, eq_type='long') 
+    le_rk4 = langevin_rk4(a0g, tpts, dt, 0*ain, kappa,
+            sz0g, gz, eq_type='long') 
     ag_long = le_rk4.langevin_solve()
-    le_rk4 = langevin_rk4(a0e, tpts, dt, 0*ain, kappa, sz0e, gz, eq_type='long') 
+    le_rk4 = langevin_rk4(a0e, tpts, dt, 0*ain, kappa,
+            sz0e, gz, eq_type='long') 
     ae_long = le_rk4.langevin_solve()
 
     ## Plot the results
