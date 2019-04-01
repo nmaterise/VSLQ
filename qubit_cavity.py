@@ -127,8 +127,7 @@ class base_cqed_mops(object):
             setattr(self, k, v)
 
         # Initialize the collapse operators as None
-        self.cops  = None
-        # self.set_ops()
+        self.cops = None
 
 
     def __del__(self):
@@ -185,12 +184,16 @@ class base_cqed_mops(object):
 
         # Run the dynamics and return the results object
         self.set_H(tpts, args)
+    
+        # Get the time step
         if kwargs is not None:
             dt = kwargs['dt']
         else:
             dt = self.tpts.max() / (10 * self.tpts.size)
         me_rk4 = odes.mesolve_rk4(self.psi0, tpts, dt,
                 self.H, self.cops) 
+    
+        # Return the density matrix
         psif = me_rk4.mesolve()
         
         return psif

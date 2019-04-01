@@ -7,6 +7,7 @@ from ode_solver import rk4
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 class sho(rk4):
     """
     Simple Harmonic Oscillator with RK4
@@ -37,8 +38,8 @@ def test_sho():
 
     # Set the frequency of oscillation
     w = 2*np.pi*1;
-    tpts = np.linspace(0, 10, 101)
-    dt = tpts.max() / (10 * tpts.size)
+    tpts = np.linspace(0, 20, 8001)
+    dt = tpts.max() / (tpts.size)
 
     # Initialize the x and y as 1
     yinit = np.array([1, 1])
@@ -50,6 +51,7 @@ def test_sho():
     plt.plot(tpts, res[:,0], label=r'x')
     plt.plot(tpts, res[:,1], label=r'y')
     plt.legend(loc='best')
+    plt.show()
     plt.savefig('figs/sho_demo.eps', format='eps')
 
 

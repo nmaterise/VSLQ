@@ -138,7 +138,7 @@ def plot_expect(tpts, op_avg, op_name='',
     
     # Set the axes labels
     xstr = 'Time (%s)' % tscale
-    ystr = r'$\langle\hat{%s}\rangle$' % op_name
+    ystr = r'$\langle{%s}\rangle$' % op_name
 
     ax.set_xlabel(xstr, fontsize=fsize)
     ax.set_ylabel(ystr, fontsize=fsize)

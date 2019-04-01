@@ -65,24 +65,30 @@ class rk4:
         """
         Run the RK4 algorithm with the prescribed right hand side function
         """
-
-        # Set rho[t=0] = rho0
-        rho = [self.rho0] * self.tpts.size
         
         # Get the time step as a register here
         h = self.dt
+        
+        # Update the number of points and times
+        Nt = self.tpts.size if h >= self.tpts.max() / self.tpts.size\
+                else int(np.ceil(self.tpts.max() / h))
+        tpts = np.linspace(self.tpts.min(), self.tpts.max(), Nt)
+        
+
+        # Set rho[t=0] = rho0
+        rho = [self.rho0] * Nt
 
         # Catch the exception
         try:
 
             # Iterate over the time steps
-            for n in range(1, self.tpts.size):
+            for n in range(1, Nt):
 
                 # Compute the standard kj values with function calls to rhs
-                k1 = h * self.rhs(rho[n-1],          self.tpts[n-1]       )
-                k2 = h * self.rhs(rho[n-1] + 0.5*k1, self.tpts[n-1]+ 0.5*h)
-                k3 = h * self.rhs(rho[n-1] + 0.5*k2, self.tpts[n-1]+ 0.5*h)
-                k4 = h * self.rhs(rho[n-1] + k3,     self.tpts[n-1]+     h)
+                k1 = h * self.rhs(rho[n-1],          tpts[n-1]       )
+                k2 = h * self.rhs(rho[n-1] + 0.5*k1, tpts[n-1]+ 0.5*h)
+                k3 = h * self.rhs(rho[n-1] + 0.5*k2, tpts[n-1]+ 0.5*h)
+                k4 = h * self.rhs(rho[n-1] + k3,     tpts[n-1]+     h)
                 
                 # Store the updated value of rho
                 rho[n] = rho[n-1] + k1/6. + k2/3. + k3/3. + k4/6.
@@ -91,9 +97,15 @@ class rk4:
             print('Failed on time step ({:6.4f})\nError message: {}'\
                 .format(self.tpts[n-1], err))
             print(traceback.format_exc())
-            # raise(Exception(locals()))
         
-        return rho
+        # Decimate the result
+        if h < self.tpts.max() / self.tpts.size:
+            rho_out = rho[0::int(tpts.size // self.tpts.size)]
+        else:
+            rho_out = rho        
+    
+
+        return rho_out
 
 
 class mesolve_rk4(rk4):
@@ -127,80 +139,19 @@ class mesolve_rk4(rk4):
         Implement the right hand side of the Lindblad master equation
         """        
         
-        # Readoff H and cops
-        H = self.H
-        cops = self.cops
+        # Lindblad equation using the expanded form for the dissipator
+        ## Compute the unitary contribution
+        Hcommrho = -1j*(self.H@rho - rho@self.H)
 
-        # Define the commutator and anti commutator
-        ## Use the overloaded operator multiplication with Qobjs
-        if rho.__class__ == qt.qobj.Qobj:
-            comm  = lambda a, b : a*b - b*a
-            acomm = lambda a, b : a*b + b*a
-            D = lambda a, p : a*p*a.dag() - 0.5*acomm(a.dag()*a, p)
+        ## Compute the dissipator contribution
+        Drho = np.zeros(rho.shape, dtype=np.complex128)
+        for ck in self.cops:
+            Drho += ck@rho@mops.dag(ck) \
+                    - 0.5 * (mops.dag(ck)@ck@rho + rho@mops.dag(ck)@ck)
 
-        ## Use the matrix multiplication operator in Python 3
-        elif rho.__class__ == np.ndarray:
-            comm  = lambda a, b : a@b - b@a
-            acomm = lambda a, b : a@b + b@a
-            D = lambda a, p : a @ p @ self.dagger(a) \
-                - 0.5*acomm(self.dagger(a)@a, p)
+        ## Sum both contributions
+        rhs_data = Hcommrho + Drho
 
-        # Compute the commutator and the dissipator terms, with hbar = 1
-        ## -i/hbar [H, rho] + sum_j D[a_j] rho
-        ## Start with the case where H is just a qt.Qobj
-        if H.__class__ == qt.qobj.Qobj and H[0].__class__ == np.ndarray:
-            Hcommrho = -1j * comm(H, qt.Qobj(rho))
-
-        ## Handle the list case, e.g. with time dependence as a numpy array
-        ## specifying the drive Hamiltonian in the same format as qutip, e.g.
-        ## [H0, [H1, e1(t)], [H2, e2(t)], ...]
-        elif H.__class__ == list and rho.__class__ == qt.qobj.Qobj:
-
-            ## Extract the time-independent Hamiltonian terms
-            H0 = H[0]
-            Hcommrho = comm(H0, qt.Qobj(rho))
-
-            ## Readoff the remaining time-dependent Hamiltonian terms
-            Hcommrho += np.sum([Hd(t)*Hk for Hk, Hd in H[1:][0]])            
-            Hcommrho *= -1j
-
-        ## Time independent case
-        elif H.__class__ == np.ndarray and rho.__class__ == np.ndarray:
-
-            # Just calculate the commutator
-            # Hcommrho = -1j*comm(H, rho)
-            Hcommrho = -1j * (H@rho - rho@H)
-
-        ## Numpy array equivalent calculations of commutators
-        elif H.__class__ == list and rho.__class__ == np.ndarray:
-
-            ## Extract the time-independent Hamiltonian terms
-            H0 = H[0]
-            Hcommrho = np.complex128(comm(H0, rho))
-
-            ## Readoff the remaining time-dependent Hamiltonian terms
-            Hcommrho += np.sum([Hd(t)*Hk for Hk, Hd in H[1:][0]])
-            Hcommrho *= -1j
-
-        ## Compute the dissipator terms
-        Dterms = np.zeros(rho.shape, dtype=np.complex128)
-        for ck in cops:
-            # Dterms += D(ck, rho)
-            Dterms += ck @ rho @ ck - 0.5 * (mops.dag(ck)@ck@rho \
-                        + rho@mops.dag(ck)@ck)
-
-        ## Return the result as a dense matrix
-        ## Use the numpy array convention to 
-        if Hcommrho.__class__ == np.ndarray:
-            rhs_data = Hcommrho + Dterms
-
-        ## If relevant,  convert the qobjs to dense matrices
-        elif Hcommrho.__class__ == qt.qobj.Qobj:
-            rhs_data = (Hcommrho + Dterms).data.todense()
-    
-        ## Complain if the result is not of the expected type
-        else:
-            raise('Data type for Hcommrho not supported.')
 
         return rhs_data
     
@@ -211,34 +162,38 @@ class mesolve_rk4(rk4):
         time-dependent drive terms
         """
 
-        # Handle the simple, time-independent case
-        if self.H.__class__ == qt.qobj.Qobj:
-            rho_out = self.solver()
-            return rho_out
+        # # Handle the simple, time-independent case
+        # if self.H.__class__ == qt.qobj.Qobj:
+        #     rho_out = self.solver()
+        #     return rho_out
+        # 
+        # # Handle time-independent Hamiltonian
+        # elif self.H.__class__ == np.ndarray:
+        #     rho_out = self.solver()
+        #     return rho_out
+        # 
+        # # Handle the case involving drive terms
+        # elif self.H.__class__ == list:
+
+        #     # Interpolate the drive terms
+        #     drvs = [interp(self.tpts, self.H[1:][0][1])]
+        #     HH = [self.H[0], [[Hk, d] for Hk, d in zip(self.H[1:][0], drvs)]]
+
+        #     # Set the class instance of the Hamiltonian to the 
+        #     # list comprehension with the interpolants embedded
+        #     self.H = HH
+
+        #     # Call the solver with the interpolated drives
+        #     rho_out = self.solver()
+
+        #     return rho_out
+
+        # else:
+        #     raise('H.__class__ ({}) not supported'.format(H.__class__))
         
-        # Handle time-independent Hamiltonian
-        elif self.H.__class__ == np.ndarray:
-            rho_out = self.solver()
-            return rho_out
+        # Attempting to find problem, starting with simplest case
         
-        # Handle the case involving drive terms
-        elif self.H.__class__ == list:
-
-            # Interpolate the drive terms
-            drvs = [interp(self.tpts, self.H[1:][0][1])]
-            HH = [self.H[0], [[Hk, d] for Hk, d in zip(self.H[1:][0], drvs)]]
-
-            # Set the class instance of the Hamiltonian to the 
-            # list comprehension with the interpolants embedded
-            self.H = HH
-
-            # Call the solver with the interpolated drives
-            rho_out = self.solver()
-
-            return rho_out
-
-        else:
-            raise('H.__class__ ({}) not supported'.format(H.__class__))
+        return self.solver()
 
 
 class langevin_rk4(rk4):
