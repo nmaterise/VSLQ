@@ -35,8 +35,8 @@ def sop(x):
     sz = np.array([[1, 0],   [0, -1]])
 
     # Plus / minus Pauli matrices
-    sp = (sx + 1j*sy) / 2.
-    sm = (sx - 1j*sy) / 2.
+    sp = (sx - 1j*sy).real / 2.
+    sm = (sx + 1j*sy).real / 2.
     
     # Define a dictionary with all of the Pauli matrices return only as needed
     sdict = {'x' : sx, 'y' : sy, 'z' : sz, 'p' : sp, 'm' : sm}
@@ -162,3 +162,34 @@ def comm(a, b, sign='-'):
     # Return the anticommutator
     elif sign == '+':
         return a@b + b@a
+
+
+def print_sops():
+    """
+    Prints the Pauli matrices as a test
+    """
+    
+    for x in ['x', 'y', 'z', 'p', 'm']:
+        print('s_{}:\n{}'.format(x, sop(x)))
+
+    print('a:')
+    print(destroy(2))
+    print('a^t:')
+    print(dag(destroy(2)))
+
+    print('np.allclose(sp, at): {}'\
+            .format(np.allclose(sop('p'), dag(destroy(2)))))
+    print('np.allclose(sm, a): {}'\
+            .format(np.allclose(sop('m'), destroy(2))))
+
+
+
+if __name__ == '__main__':
+
+    print_sops()
+
+
+
+
+
+

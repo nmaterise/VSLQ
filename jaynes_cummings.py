@@ -48,27 +48,6 @@ class jaynes_cummings(base_cqed_mops):
         
         # Collapse operators only including dissipation, no dephasing
         self.set_cops([self.gammac, self.gammaq], [self.ac, self.sm])
-        self.set_init_state()
-        
-
-    def set_init_state(self, psi0=None, dressed_state='10'):
-        """
-        Set the initial state
-        """
-
-        # Set a particular product state, dressed state of the Jaynes-Cummings
-        # Hamiltonian as |e/g, n >
-        ## |e, 0 >
-        if dressed_state == '10':
-            self.psi0 = mops.ket2dm(mops.tensor(mops.basis(self.Nq, 1),
-                        mops.basis(self.Nc, 0)))
-        ## |g, 1 >
-        elif dressed_state == '01':
-            self.psi0 = mops.ket2dm(mops.tensor(mops.basis(self.Nq, 0),
-                        mops.basis(self.Nc, 1)))
-        ## |e/g, n > and all other valid states 
-        else:
-            self.psi0 = psi0
 
     
     def set_ops(self):
@@ -84,15 +63,15 @@ class jaynes_cummings(base_cqed_mops):
         # Destruction operators
         ## Cavity operators
         ac0 = mops.destroy(self.Nc)
-        self.ac = mops.tensor(self.Iq, ac0)
+        self.ac = mops.tensor(ac0, self.Iq)
         
         # Qubit operators
         sz0 = mops.sop('z')
         sm0 = mops.sop('m')
         sp0 = mops.sop('p')
-        self.sz = mops.tensor(sz0, self.Ic)
-        self.sp = mops.tensor(sp0, self.Ic)
-        self.sm = mops.tensor(sm0, self.Ic)
+        self.sz = mops.tensor(self.Ic, sz0)
+        self.sp = mops.tensor(self.Ic, sp0)
+        self.sm = mops.tensor(self.Ic, sm0)
 
 
     def set_H(self, tpts, args):
@@ -102,9 +81,10 @@ class jaynes_cummings(base_cqed_mops):
         
         # Set the total Hamiltonian
         if self.use_rwa:
+            print('Setting RWA Jaynes-Cummings Hamiltonian ...')
             self.H = self.wc*mops.dag(self.ac)@self.ac \
-                     + self.wq*self.sp@self.sm / 2 \
-                     + self.g * (self.sp@self.ac + self.sm@mops.dag(self.ac))
+                     + self.wq*self.sp@self.sm \
+                    -1j*self.g*(self.sp@self.ac - self.sm@mops.dag(self.ac))
 
         else:
             self.H = self.wc*mops.dag(self.ac)@self.ac + self.wq*self.sz / 2 \
@@ -116,51 +96,44 @@ def test_jc():
     Test the above Jaynes-Cummings system using the Lindblad solver
     """
 
-    # Choose a large detuning between qubit and cavity 
-    wc = 2*np.pi*1; wq = wc; # wq = 2*np.pi*5; 
+    # Physical constants
+    delta = 0
+    wc = 2*np.pi*1; wq = (wc-delta)
+    Nc = 15; Nq = 2;
+    g = max(wc, wq) / 20
+    T = 8*np.pi / (2*g) 
+    gammac = g / (2*np.pi * 2); gammaq = gammac / 10
 
-    # Choose number of photons for cavity and number of levels for the qubit
-    Nc = 16; Nq = 2;
+    # Set the times and time step
+    tpts = np.linspace(0, T, 1001)
+    dt = tpts.max() / (tpts.size)
 
-    # Compute g from dispersive limit, chi = g^2 / delta
-    chi = 2*np.pi*20e-3; delta = abs(wc - wq);
-    g = 2*np.pi*0.05; # np.sqrt(chi * delta)
-
-    # Decay rates small compared to g
-    gammac = 0*2*np.pi*0.005; gammaq = 0*2*np.pi*0.05
-
-    # Choose a time scale that is ~10 periods of the Rabi frequency
-    TR = 2*np.pi/(2*g); NR = 50; tmax = NR * TR;
-    # dt = 2*np.pi / max(wc, wq);
-    dt = 2*np.pi / (10*wc);
-    Ntmp = int(np.ceil(TR / dt))
-    Nt = Ntmp + 1 if not (Ntmp % 2) else Ntmp
-    print('Running Jaynes-Cummings for (%g) us with (%d) time steps ...' \
-            % (tmax, Nt))
-    tpts = np.linspace(0, tmax, Nt)
 
     # Initialize the Jaynes-Cummings object
     my_jc = jaynes_cummings(Nc, Nq, wc, wq,
                             g, gammac, gammaq,
                             use_rwa=True)
     
-    # Set the intial state to a simple dressed state
-    init_state = '10'
-    rho0 = mops.ket2dm(mops.tensor(mops.basis(Nq, 0), mops.coherent(Nc, 1)))
-    my_jc.set_init_state(dressed_state=init_state)
+    # Set the initial density matrix and solve for the new rho
+    init_state = '0e'
+    rho0 = mops.ket2dm(mops.tensor(mops.basis(Nc, 0), mops.basis(Nq, 1)))
+    my_jc.set_init_state(rho0)
 
     # Run the dynamics
-    args = [1, tpts.max()/2, tpts.max()/12]
-    rho = my_jc.run_dynamics(tpts, args, dt=dt/10)
+    args = []
+    rho = my_jc.run_dynamics(tpts, args, dt=dt)
 
     # Get the expected values of sigma_z
-    sz = mops.expect(mops.dag(my_jc.ac)@my_jc.ac, rho)
-    # sz = mops.expect(my_jc.sz, rho)
-    # sz = mops.expect(my_jc.ac + mops.dag(my_jc.ac), rho)
+    sz = mops.expect(my_jc.sp@my_jc.sm, rho)
+    n1 = mops.expect(mops.dag(my_jc.ac)@my_jc.ac, rho)
 
     # Plot the results
-    ppt.plot_expect(tpts, sz, op_name='\sigma_z',
-                    file_ext='sz_%s' % init_state, tscale='us') 
+    plt.plot(tpts, sz.real, label=r'$\langle\sigma_z\rangle$')
+    plt.plot(tpts, n1.real, label=r'$\langle{a_1^{\dagger}a_1}\rangle$')
+    plt.legend(loc='best')
+    plt.show()
+    plt.savefig('figs/expect_n1sz_%s.eps' % init_state, format='eps')
+
 
 if __name__ == '__main__':
 
