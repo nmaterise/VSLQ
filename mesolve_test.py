@@ -62,6 +62,69 @@ class qho(base_cqed_mops):
         self.H = self.w * (mops.dag(self.a)@self.a + self.Ic/2)
 
 
+class qho2(base_cqed_mops):
+    """
+    Two bilinearly coupled harmonic oscillators
+    """
+
+    def __init__(self, N1, N2, w1, w2, g, gamma1, gamma2):
+        """
+        Call the base class constructor with the above keyword arguments
+    
+        Parameters:
+        ----------
+
+        N1, N2:     number of levels in oscillators 1 and 2
+        w1, w2:     resonance frequencies of 1 and 2
+        g:          coupling between oscillators 1 and 2
+        gamma1/2:   dissipation rates of 1 and 2
+        
+        """
+
+        # Call the base constructor
+        base_cqed_mops.__init__(self, N1=N1, N2=N2, w1=w1, w2=w2,
+                                gamma1=gamma1, gamma2=gamma2, g=g)
+
+        # Set the operators
+        self.set_ops()
+        self.set_H([], [])
+        self.set_cops([gamma1, gamma2],\
+                      [self.a1, self.a2])
+
+
+    def set_ops(self):
+        """
+        Set the relevant operators for the Hamiltonian
+        """
+
+        # Set the identity operators
+        I1 = np.eye(self.N1)
+        I2 = np.eye(self.N2)
+
+        # Set the destruction operator (s)
+        a01 = mops.destroy(self.N1)
+        a02 = mops.destroy(self.N2)
+
+        # Tensor the identity and destruction operators
+        self.a1 = mops.tensor(a01, I2)
+        self.a2 = mops.tensor(I1, a02)
+
+        # Number operators
+        self.n1 = mops.dag(self.a1) @ self.a1
+        self.n2 = mops.dag(self.a2) @ self.a2
+
+
+    
+    def set_H(self, tpts, args):
+        """
+        Set the Hamiltonian
+        """
+
+        # H = w1 a1^t a1 + w2 a2^t a2 + g(a1 + a1^t) (a2 + a2^t)
+        self.H = self.w1 * self.n1 + self.w2 * self.n2 \
+               + self.g * (mops.dag(self.a1)@self.a2 \
+                       + self.a1@mops.dag(self.a2))
+
 def test_qho_mesolve_fock_decay(N):
     """
     Test the decay of Fock state in a harmonic oscillator
@@ -125,8 +188,55 @@ def test_qho_mesolve_coherent_decay(alpha):
                     file_ext='qho_alpha_{}_x'.format(alpha)) 
 
 
+def test_qho2_mesolve_fock_decay(N):
+    """
+    Test the population transfer of two oscillators and decay
+    """
+
+    # Choose physical parameters
+    delta = 0
+    w1 = 2*np.pi*1; w2 = (w1-delta)
+    N1 = 15; N2 = 2;
+    g = max(w1, w2) / 20
+    T = 4*2*np.pi / (2*g) 
+    gamma1 = g / (2*np.pi * 5); gamma2 = gamma1 / 10
+
+    # Set the times and time step
+    tpts = np.linspace(0, T, 101)
+    dt = tpts.max() / (tpts.size)
+
+    # Set the initial density matrix and solve for the new rho
+    rho0 = mops.ket2dm(mops.tensor(mops.basis(N1, 0), mops.basis(N2, N)))
+    
+    # Initialize the class object and run_dynamics()
+    my_qho = qho2(N1, N2, w1, w2, g, gamma1, gamma2)
+    my_qho.set_init_state(rho0)
+    rho = my_qho.run_dynamics(tpts, [], dt=dt)
+
+    # Get the average popultion, n1
+    n1 = mops.expect(my_qho.n1, rho)
+
+    # Get the average popultion, n2
+    n2 = mops.expect(my_qho.n2, rho)
+
+    plt.plot(tpts, np.abs(n1), label=r'$\langle{a_1^{\dagger}a_1}\rangle$')
+    plt.plot(tpts, np.abs(n2), label=r'$\langle{a_2^{\dagger}a_2}\rangle$')
+    
+    plt.legend(loc='best')
+    plt.show()
+    plt.savefig('figs/qho2_n1n2_%d.eps' % N, format='eps')
+
+    # # Plot the results
+    # ppt.plot_expect(tpts, n1, op_name='a_1^{\dagger}a_1',
+    #                 file_ext='qho2_n1_%d' % N) 
+    # # Plot the results
+    # ppt.plot_expect(tpts, n2, op_name='a_2^{\dagger}a_2',
+    #                 file_ext='qho2_n2_%d' % N) 
+
+
 if __name__ == '__main__':
     
     # Run the above test by default
     # test_qho_mesolve_fock_decay(3)
-    test_qho_mesolve_coherent_decay(1)
+    # test_qho_mesolve_coherent_decay(1)
+    test_qho2_mesolve_fock_decay(1)

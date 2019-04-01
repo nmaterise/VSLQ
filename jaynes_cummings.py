@@ -88,9 +88,9 @@ class jaynes_cummings(base_cqed_mops):
         
         # Qubit operators
         sz0 = mops.sop('z')
-        sm0 = mops.destroy(self.Nq) # mops.sop('m')
-        sp0 = mops.dag(sm0) # mops.sop('p')
-        self.sz = mops.tensor(sp0 @ sm0, self.Ic)
+        sm0 = mops.sop('m')
+        sp0 = mops.sop('p')
+        self.sz = mops.tensor(sz0, self.Ic)
         self.sp = mops.tensor(sp0, self.Ic)
         self.sm = mops.tensor(sm0, self.Ic)
 
