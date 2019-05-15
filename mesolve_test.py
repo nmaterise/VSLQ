@@ -148,7 +148,7 @@ def test_qho_mesolve_fock_decay(N):
     my_qho.set_init_state(rho0)
     rho = my_qho.run_dynamics(tpts, [], dt=dt)
 
-    # Get the average popultion
+    # Get the average population
     navg = mops.expect(mops.dag(my_qho.a)@my_qho.a, rho)
 
     # Plot the results
@@ -179,7 +179,7 @@ def test_qho_mesolve_coherent_decay(alpha):
     my_qho.set_init_state(rho0)
     rho = my_qho.run_dynamics(tpts, [], dt=dt)
 
-    # Get the average popultion
+    # Get the average population
     x = np.sqrt(1. / (2*w)) * (my_qho.a + mops.dag(my_qho.a))
     xavg = mops.expect(x, rho)
 
@@ -236,7 +236,9 @@ def test_qho2_mesolve_fock_decay(N):
 
 if __name__ == '__main__':
     
-    # Run the above test by default
-    # test_qho_mesolve_fock_decay(3)
-    # test_qho_mesolve_coherent_decay(1)
+    # This is a test of the population transfer between a harmonic
+    # oscillator and a qubit with loss applied to both the qubit
+    # and oscillator.
+    # There is a similar example in the QuTip documentation that I used
+    # validate this test related to the Jaynes-Cummings model
     test_qho2_mesolve_fock_decay(1)
