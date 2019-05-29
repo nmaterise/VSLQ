@@ -11,7 +11,7 @@ import matrix_ops as mops
 import post_proc_tools as ppt
 from qubit_cavity import base_cqed_mops
 from ode_solver import mesolve_rk4
-
+import drive_tools as dts
 
 class qho(base_cqed_mops):
     """
@@ -67,27 +67,30 @@ class qho2(base_cqed_mops):
     Two bilinearly coupled harmonic oscillators
     """
 
-    def __init__(self, N1, N2, w1, w2, g, gamma1, gamma2):
+    def __init__(self, tpts, N1, N2, w1, w2,
+                 g, gamma1, gamma2, use_Ht=False):
         """
         Call the base class constructor with the above keyword arguments
     
         Parameters:
         ----------
 
+        tpts:       time points to evaluate the H(t) term
         N1, N2:     number of levels in oscillators 1 and 2
         w1, w2:     resonance frequencies of 1 and 2
         g:          coupling between oscillators 1 and 2
         gamma1/2:   dissipation rates of 1 and 2
+        use_Ht:     use the time-dependent Hamiltonian
         
         """
 
         # Call the base constructor
-        base_cqed_mops.__init__(self, N1=N1, N2=N2, w1=w1, w2=w2,
+        base_cqed_mops.__init__(self, tpts=tpts, N1=N1, N2=N2, w1=w1, w2=w2,
                                 gamma1=gamma1, gamma2=gamma2, g=g)
 
         # Set the operators
         self.set_ops()
-        self.set_H([], [])
+        self.set_H(tpts, use_Ht)
         self.set_cops([gamma1, gamma2],\
                       [self.a1, self.a2])
 
@@ -120,10 +123,26 @@ class qho2(base_cqed_mops):
         Set the Hamiltonian
         """
 
-        # H = w1 a1^t a1 + w2 a2^t a2 + g(a1 + a1^t) (a2 + a2^t)
-        self.H = self.w1 * self.n1 + self.w2 * self.n2 \
+        # Extract args
+        use_Ht = args
+
+        # H = w1 a1^t a1 + w2 a2^t a2 + g(a1 + a1^t) (a2 + a2^t) 
+        #       + sqrt(2) cos(w2 t) (a1 + a1^t)
+        # Define the time independent and time dependent Hamiltonians
+        H0 = self.w1 * self.n1 + self.w2 * self.n2 \
                + self.g * (mops.dag(self.a1)@self.a2 \
                        + self.a1@mops.dag(self.a2))
+
+        # Combine both components as a single list
+        if use_Ht:
+            print('Using time-dependent Hamiltonian ...')
+            Hp = self.a1 + mops.dag(self.a1)
+            delta = abs(self.w1 - self.w2)
+            wR = np.sqrt(4*self.g**2 + delta**2)
+            self.H = [H0, [[Hp, np.sqrt(2) * np.cos(wR*tpts)]]]
+        else:
+            self.H = H0
+
 
 def test_qho_mesolve_fock_decay(N):
     """
@@ -194,7 +213,7 @@ def test_qho2_mesolve_fock_decay(N):
     """
 
     # Choose physical parameters
-    delta = 0
+    delta = 2*np.pi*0.1
     w1 = 2*np.pi*1; w2 = (w1-delta)
     N1 = 15; N2 = 2;
     g = max(w1, w2) / 20
@@ -209,7 +228,7 @@ def test_qho2_mesolve_fock_decay(N):
     rho0 = mops.ket2dm(mops.tensor(mops.basis(N1, 0), mops.basis(N2, N)))
     
     # Initialize the class object and run_dynamics()
-    my_qho = qho2(N1, N2, w1, w2, g, gamma1, gamma2)
+    my_qho = qho2(tpts, N1, N2, w1, w2, g, gamma1, gamma2)
     my_qho.set_init_state(rho0)
     rho = my_qho.run_dynamics(tpts, [], dt=dt)
 
@@ -223,15 +242,48 @@ def test_qho2_mesolve_fock_decay(N):
     plt.plot(tpts, np.abs(n2), label=r'$\langle{a_2^{\dagger}a_2}\rangle$')
     
     plt.legend(loc='best')
-    plt.show()
-    plt.savefig('figs/qho2_n1n2_%d.eps' % N, format='eps')
+    # plt.show()
+    plt.savefig('figs/qho2_n1n2_detuned_%d.eps' % N, format='eps')
 
-    # # Plot the results
-    # ppt.plot_expect(tpts, n1, op_name='a_1^{\dagger}a_1',
-    #                 file_ext='qho2_n1_%d' % N) 
-    # # Plot the results
-    # ppt.plot_expect(tpts, n2, op_name='a_2^{\dagger}a_2',
-    #                 file_ext='qho2_n2_%d' % N) 
+
+def test_qho2_mesolve_driven(N):
+    """
+    Test driven population transfer of two oscillators with decay
+    """
+
+    # Choose physical parameters
+    delta = 2*np.pi*0.1
+    w1 = 2*np.pi*1; w2 = (w1-delta)
+    N1 = 15; N2 = 2;
+    g = max(w1, w2) / 20
+    T = 5*2*np.pi / np.sqrt(((2*g)**2 + delta**2))
+    gamma1 = g / (2*np.pi * 2); gamma2 = gamma1 / 4
+
+    # Set the times and time step
+    tpts = np.linspace(0, T, 4001)
+    dt   = tpts.max() / (tpts.size)
+
+    # Set the initial density matrix and solve for the new rho
+    rho0 = mops.ket2dm(mops.tensor(mops.basis(N1, 0), mops.basis(N2, N)))
+    
+    # Initialize the class object and run_dynamics()
+    my_qho = qho2(tpts, N1, N2, w1, w2, g, gamma1, gamma2, use_Ht=True)
+    my_qho.set_init_state(rho0)
+    print('Running driven dynamics for %g ns ...' % T)
+    rho = my_qho.run_dynamics(tpts, [], dt=dt)
+
+    # Get the average popultion, n1
+    n1 = mops.expect(my_qho.n1, rho)
+
+    # Get the average popultion, n2
+    n2 = mops.expect(my_qho.n2, rho)
+
+    plt.plot(tpts, np.abs(n1), label=r'$\langle{a_1^{\dagger}a_1}\rangle$')
+    plt.plot(tpts, np.abs(n2), label=r'$\langle{a_2^{\dagger}a_2}\rangle$')
+    
+    plt.legend(loc='best')
+    # plt.show()
+    plt.savefig('figs/qho2_n1n2_detuned_driven_%d.pdf' % N, format='pdf')
 
 
 if __name__ == '__main__':
@@ -240,5 +292,6 @@ if __name__ == '__main__':
     # oscillator and a qubit with loss applied to both the qubit
     # and oscillator.
     # There is a similar example in the QuTip documentation that I used
-    # validate this test related to the Jaynes-Cummings model
-    test_qho2_mesolve_fock_decay(1)
+    # to validate this test related to the Jaynes-Cummings model
+    # test_qho2_mesolve_fock_decay(1)
+    test_qho2_mesolve_driven(0)

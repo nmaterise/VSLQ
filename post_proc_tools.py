@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib import cm
-import qutip as qt
+# import qutip as qt
 import datetime
 import pickle as pk
 
@@ -23,66 +23,34 @@ def set_axes_fonts(ax, fsize):
         tick.set_fontsize(fsize)
 
 
-def get_wigner(psi, file_ext=None):
-    """
-    Compute, return, and save the Wigner function
-    """
+# def get_wigner(psi, file_ext=None):
+#     """
+#     Compute, return, and save the Wigner function
+#     """
+# 
+#     # Use the same size grid to compute the Wigner function each time
+#     xvec = np.linspace(-5, 5, 500)
+#     W = qt.wigner(psi.ptrace(1), xvec, xvec)
+# 
+#     # Write results to binary files
+#     if file_ext is not None:
+#         W.tofile('%s_wigner.bin' % file_ext)
+#         xvec.tofile('%s_wigner_xvec.bin' % file_ext)
+# 
+#     return xvec, W
 
-    # Use the same size grid to compute the Wigner function each time
-    xvec = np.linspace(-5, 5, 500)
-    W = qt.wigner(psi.ptrace(1), xvec, xvec)
 
-    # Write results to binary files
-    if file_ext is not None:
-        W.tofile('%s_wigner.bin' % file_ext)
-        xvec.tofile('%s_wigner_xvec.bin' % file_ext)
-
-    return xvec, W
-
-
-def get_expect(op, rho, man_tr=False):
+def get_expect(op, rho):
     """
     Manually computes the expectation value of an operator
     given the density matrix, rho
     """
-    
-    # Compute the trace by qutip or manually
-    if man_tr:
-    
-        print('Computing expectation values with manual trace ...')
 
-        # Compute the new matrix-matrix product
-        if (op.__class__ == qt.Qobj) and (rho.__class__ == qt.Qobj):
-            
-            A = rho * op
-            return np.trace(A.data.todense())
+    # Convert the density matrix to a numpy array if needed
+    rho = np.asarray(rho)            
 
-        # Handle the vector output of rho
-        elif ((rho.__class__ == np.ndarray) or (rho.__class__ == list)):
-
-            print('Computing trace of list(rho) ...')
-        
-            # Convert the density matrix to a numpy array if needed
-            rho = np.asarray(rho)            
-
-            return np.array([np.trace(rho[i,:,:] @ op) \
-                    for i in range(np.shape(rho)[0]) ])
-
-    else:    
-    
-        # Compute the new matrix if qt.Qobjs
-        if (op.__class__ == qt.Qobj) and (rho.__class__ == qt.Qobj):
-
-            # Compute the expectation value with qutip
-            return qt.expect(op, rho)
-
-        elif ((rho.__class__ == np.ndarray) or (rho.__class__ == list)):
-
-            print('Computing trace of list(rho) ...')
-
-            # Compute the expectation value with qutip
-            return np.array([qt.expect(op, qt.Qobj(rho[:,:,i])) \
-                    for i in range(rho.shape[-1]) ])
+    return np.array([np.trace(rho[i,:,:] @ op) \
+            for i in range(np.shape(rho)[0]) ])
 
 
 def plot_wigner(xvec, W,

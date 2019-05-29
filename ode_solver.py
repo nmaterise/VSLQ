@@ -5,7 +5,6 @@ Solver for ODE's using Runge-Kutta 4 and other methods
 
 import numpy as np
 from scipy.interpolate import interp1d as interp
-import qutip as qt
 import post_proc_tools as ppt
 import matplotlib.pyplot as plt
 import matrix_ops as mops
@@ -141,8 +140,25 @@ class mesolve_rk4(rk4):
         
         # Lindblad equation using the expanded form for the dissipator
         ## Compute the unitary contribution
-        Hcommrho = -1j*(self.H@rho - rho@self.H)
+        ## Time independent case
+        if self.H.__class__ == np.ndarray:
+            Hcommrho = -1j*(self.H@rho - rho@self.H)
 
+        ## Time dependent case
+        elif self.H.__class__ == list:
+            # Extract time-independent and time-dependent components
+            H0 = self.H[0]; Hp = self.H[1]
+
+            # Multiply and add Hp components
+            Hpp = sum([h*d(t) for h, d in Hp])
+
+            # Sum contributions and compute commutator
+            Htot = H0 + Hpp
+            Hcommrho = -1j*(Htot@rho - rho@Htot)
+
+        else:
+            raise TypeError('Time dependent Hamiltonian type (%s) not \
+                             supported' % self.H.__class__)
         ## Compute the dissipator contribution
         Drho = np.zeros(rho.shape, dtype=np.complex128)
         for ck in self.cops:
@@ -151,7 +167,6 @@ class mesolve_rk4(rk4):
 
         ## Sum both contributions
         rhs_data = Hcommrho + Drho
-
 
         return rhs_data
     
@@ -162,36 +177,39 @@ class mesolve_rk4(rk4):
         time-dependent drive terms
         """
 
-        # # Handle the simple, time-independent case
-        # if self.H.__class__ == qt.qobj.Qobj:
-        #     rho_out = self.solver()
-        #     return rho_out
-        # 
-        # # Handle time-independent Hamiltonian
-        # elif self.H.__class__ == np.ndarray:
-        #     rho_out = self.solver()
-        #     return rho_out
-        # 
-        # # Handle the case involving drive terms
-        # elif self.H.__class__ == list:
-
-        #     # Interpolate the drive terms
-        #     drvs = [interp(self.tpts, self.H[1:][0][1])]
-        #     HH = [self.H[0], [[Hk, d] for Hk, d in zip(self.H[1:][0], drvs)]]
-
-        #     # Set the class instance of the Hamiltonian to the 
-        #     # list comprehension with the interpolants embedded
-        #     self.H = HH
-
-        #     # Call the solver with the interpolated drives
-        #     rho_out = self.solver()
-
-        #     return rho_out
-
-        # else:
-        #     raise('H.__class__ ({}) not supported'.format(H.__class__))
+        # Handle time-independent Hamiltonian
+        if self.H.__class__ == np.ndarray:
+            rho_out = self.solver()
+            return rho_out
         
-        # Attempting to find problem, starting with simplest case
+        # Handle the case involving drive terms
+        elif self.H.__class__ == list:
+
+            # Extract the time-indepent and time-dependent Hamiltonians
+            H0 = self.H[0]
+            Hp = self.H[1]
+
+            # Transpose Hp and extract the operators
+            HpT = list(map(list, zip(*Hp)))
+            Hpops = HpT[0]
+            Hpdrvs = HpT[1]
+
+            # Interpolate the drive terms
+            drvs = [interp(self.tpts, d) for d in Hpdrvs]
+            HH = [H0, [[Hk, d] for Hk, d in zip(Hpops, drvs)]]
+
+            # Set the class instance of the Hamiltonian to the 
+            # list comprehension with the interpolants embedded
+            self.H = HH
+
+            # Call the solver with the interpolated drives
+            rho_out = self.solver()
+
+            return rho_out
+
+        else:
+            raise('H.__class__ ({}) not supported'.format(H.__class__))
+        
         
         return self.solver()
 
@@ -264,8 +282,8 @@ def test_mesolve():
     # Setup a basic cavity system
     Nc = 2;
     Nq = 3;
-    a = qt.tensor(qt.qeye(Nq), qt.destroy(Nc))
-    b = qt.tensor(qt.destroy(Nq), qt.qeye(Nc))
+    a = mops.tensor(mops.qeye(Nq), mops.destroy(Nc))
+    b = mops.tensor(mops.destroy(Nq), mops.qeye(Nc))
     wc = 5;
     kappa = 0.1
     dt = (1./kappa) / 1e2
@@ -281,7 +299,7 @@ def test_mesolve():
     # Form the total Hamiltonian and set the collapse operators
     H = [H0, [Hc, Hd]]
     cops = [kappa * a]
-    rho0 = qt.ket2dm(qt.tensor(qt.basis(Nq, 0), qt.basis(Nc, 0)))
+    rho0 = mops.ket2dm(mops.tensor(mops.basis(Nq, 0), mops.basis(Nc, 0)))
 
     # Setup the master equation solver instance
     me_rk4 = mesolve_rk4(rho0, tpts, 4*tpts.max()/tpts.size, H, cops) 
@@ -352,7 +370,6 @@ def test_langevin_solve():
     Tests the Langevin equation solver for the
     longitudinal case in Didier, 2015
     """
-
 
     # Parameters for the cavity, coupling, etc.
     kappa = 0.1; chi = kappa / 2.; gz = np.sqrt(chi)

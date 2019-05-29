@@ -6,6 +6,28 @@ Collection of utility / helper functions to generate drives
 import numpy as np
 
 
+def get_gauss_env(x, x0, sig):
+    """
+    Returns a Gaussian envelope
+    
+    Parameters:
+    ----------
+
+    x:          abscissa, same units as tscale 
+    x0:         center of the Gaussian
+    sig:        standard deviation of the Gaussian
+
+    """
+
+    # Compute the normalization factor
+    norm = 1. / (np.sqrt(2*np.pi)*sig) 
+    
+    # Compute the argument
+    arg = (x - x0)**2 / (2*sig**2)
+    
+    return norm * np.exp(-arg)
+
+
 def get_tanh_env(x, x1, x2, ascale=1.0, tscale=0.5):
     """
     Returns a hyperbolic tangent envelope
