@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib import cm
+from scipy.optimize import curve_fit
 # import qutip as qt
 import datetime
 import pickle as pk
@@ -21,6 +22,15 @@ def set_axes_fonts(ax, fsize):
         tick.set_fontsize(fsize)
     for tick in ax.get_yticklabels():
         tick.set_fontsize(fsize)
+
+
+def set_leg_hdls_lbs(ax, fsize, loc='best'):
+    """
+    Set the legend handles and labels
+    """
+
+    hdls, legs = ax.get_legend_handles_labels()
+    ax.legend(hdls, legs, loc=loc, fontsize=fsize)
 
 
 # def get_wigner(psi, file_ext=None):
@@ -38,19 +48,6 @@ def set_axes_fonts(ax, fsize):
 #         xvec.tofile('%s_wigner_xvec.bin' % file_ext)
 # 
 #     return xvec, W
-
-def get_expect(op, rho):
-    """
-    Manually computes the expectation value of an operator
-    given the density matrix, rho
-    """
-
-    # Convert the density matrix to a numpy array if needed
-    rho = np.asarray(rho)            
-
-    return np.array([np.trace(rho[i,:,:] @ op) \
-            for i in range(np.shape(rho)[0]) ])
-
 
 def plot_wigner(xvec, W,
                 xstr=r'Re$[\alpha]$',
@@ -472,3 +469,74 @@ def plot_io_a_full(tpts, a0_d, ae_d, a0_l, ae_l,
             format='eps')
     fig.savefig('figs/%s_ssfull_phase_diagram_%s.png' % (fext, tstamp),
             format='png')
+
+
+def plot_gammap_sweep_exp(gammap):
+    """
+    Plots the exponential functions written to pickle data sets
+    """
+
+    # Initialize the list
+    p0 = []
+
+    # Read the data from file
+    for idx, gp in enumerate(gammap):
+        with open('data/p0_gamma_%d.bin' % int(gp), 'rb') as fid:
+            p0.append(pk.load(fid))
+        fid.close() 
+
+    # Create the figure and axes
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8), tight_layout=True)
+    fsize = 24; lsize = 20;
+    set_axes_fonts(ax, fsize)
+
+    # Iterate over the list and plot the results
+    for idx, gp in enumerate(gammap):
+        ax.plot(p0[idx][0].real, np.abs(p0[idx][1]),
+                label=r'$T_{1p} = $%d MHz' % int(gp))
+
+    # Set the legends, axes labels and save the figure
+    set_leg_hdls_lbs(ax, lsize)
+    fig.savefig('figs/t1L_t1p_exp.pdf', format='pdf')
+    
+
+def post_fit_exp(T1p):
+    """
+    Fit the data read from file
+    """
+
+    ## Curve fit for T1L
+    def fit_fun(x, a, b, c):
+        return a * np.exp(-x*b) + c
+    
+    # Iterate over all files
+    T1L = np.zeros(T1p.size)
+    for idx, tp in enumerate(T1p):
+        with open('data/p0_gamma_%d.bin' % int(tp), 'rb') as fid:
+            pdata = pk.load(fid)
+        fid.close() 
+
+        ## Convert the pickle data to tpts and p0
+        tpts = pdata[0].real; p0 = np.abs(pdata[1])
+
+        ## Decimate the data
+        defac = 1 # if tpts.size < 50000 else 1000 
+        tpts = tpts[0::defac]; p0 = p0[0::defac]
+
+        ## Return the covariance matrix and optimal values
+        popt, pcov = curve_fit(fit_fun, tpts, p0, maxfev=10000)
+                                #bounds=([0.1, 0, -1], [1, 1000, 1]))
+
+        ## Extract the T1L time
+        T1L[idx] = 1./popt[1]
+        dT1L = np.sqrt(np.abs(np.diag(pcov)[1]))
+        print('T1p: %g us, T1L: %g +/- %g us, T1L/T1p: %g'\
+                % (tp, T1L[idx], dT1L, (T1L[idx]/tp)))
+
+
+    # Plot the resulting T1L data
+    plt.figure(1)
+    plt.plot(T1p, T1L/T1p, 'b.')
+    plt.xlabel(r'$T_{1P}\ (\mu\mathrm{s})$')
+    plt.ylabel(r'$T_{1L}/T_{1P}$')
+    plt.savefig('figs/t1L_t1p_fit.pdf', format='pdf')
