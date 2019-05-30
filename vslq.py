@@ -9,7 +9,7 @@ Created: 180921
 
 import numpy as np
 import matrix_ops as mops
-from qubit_cavity import base_cqed, base_cqed_mops
+from qubit_cavity import base_cqed_mops
 import matplotlib.pyplot as plt
 import pickle as pk
 import multiprocessing as mp
@@ -25,7 +25,7 @@ class vslq_mops(base_cqed_mops):
     """
 
     def __init__(self, Ns, Np, tpts, W, d, Om,
-                 gammap, gammas, readout_type='disp'):
+                 gammap, gammas):
         """
         Constructor for the class
 
@@ -38,8 +38,6 @@ class vslq_mops(base_cqed_mops):
         d:              anharmonicity of the primary qubits
         Om:             primary-shadow qubit interaction strength
         gammap/s:       loss rate for the primary / shadow qubits
-        readout_type:   'disp' / 'long' readout types for dispersive and
-                        'longitudinal' interactions
     
         """
 
@@ -146,22 +144,6 @@ class vslq_mops(base_cqed_mops):
         
         # Time independent Hamiltonian is sum of all contributions
         self.H = Hp + Hs + Hps
-
-
-    def get_logical_expect(self, psif):
-        """
-        Computes the expectation value of the logical operator, pL
-        """
-
-        # Projection operator to compute the expectation value
-        self.pL = 0.5 * self.Xl * (1. + self.Xl*self.Xr) * (1. - self.Pl1) \
-                  * (1 - self.Pr1)
-
-        # Compute the expectation value using the states from the mesolve
-        # solution, psif
-        pL_expect = mops.expect(self.pL, psif.states)
-
-        return pL_expect
 
 
 class vslq_mops_readout(base_cqed_mops):

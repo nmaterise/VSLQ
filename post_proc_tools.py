@@ -39,7 +39,6 @@ def set_axes_fonts(ax, fsize):
 # 
 #     return xvec, W
 
-
 def get_expect(op, rho):
     """
     Manually computes the expectation value of an operator
