@@ -124,6 +124,10 @@ class vslq_mops(base_cqed_mops):
         self.Xr = (self.apr@self.apr \
                 + mops.dag(self.apr)@mops.dag(self.apr)) / np.sqrt(2)
 
+        ## Set the logical state operator
+        self.pL = 0.5 * self.Xl * (1. + self.Xl*self.Xr) * (1. - self.Pl1) \
+                  * (1 - self.Pr1)   
+
 
     def set_H(self, tpts, args):
         """

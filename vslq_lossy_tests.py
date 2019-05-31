@@ -44,7 +44,7 @@ def parfor_get_gamma(Np, Ns, W, delta, Om, gammap, gammas, plot=False):
     rho = my_vslq.run_dynamics(tpts, args_list, dt=tpts.max()/tpts.size)
 
     # Compute the expectation value and get T1L
-    p0 = mops.expect(my_vslq.psi0, rho)
+    p0 = mops.expect(my_vslq.pL, rho)
     with open('data/p0_gamma_%d.bin' % int(1./gammap), 'wb') as fid:
         pk.dump(np.vstack((tpts, p0)), fid)
     fid.close()
@@ -142,6 +142,7 @@ def plot_exp_data():
     # Use the same set of gammap's as above
     gammap = np.linspace(5., 80., 16)
     T1p = np.array([5, 15, 25, 35, 45, 55, 65, 75])
+    T1p = np.array([15, 25, 35, 45, 55])
 
     # Call the plotting function
     # ppt.plot_gammap_sweep_exp(T1p)
