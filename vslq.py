@@ -59,22 +59,26 @@ class vslq_mops(base_cqed_mops):
         """
     
         # States for the qubit / shadow degrees of freedom
-        s0  = mops.basis(self.Np, 0);
-        s1  = mops.basis(self.Np, 1); 
-        s2  = mops.basis(self.Np, 2)
-        ss0 = mops.basis(self.Ns, 0);
-        ss1 = mops.basis(self.Ns, 1)
+        self.s0  = mops.basis(self.Np, 0);
+        self.s1  = mops.basis(self.Np, 1); 
+        self.s2  = mops.basis(self.Np, 2)
+        self.ss0 = mops.basis(self.Ns, 0);
+        self.ss1 = mops.basis(self.Ns, 1)
         
         # Compute the density matrices corresponding to the states
         ## These correspond to the projectors |n_k > < n_k|
-        self.s1dm  = mops.ket2dm(s1); 
-        self.s2dm  = mops.ket2dm(s2); 
-        self.ss0dm = mops.ket2dm(ss0);
-        self.ss1dm = mops.ket2dm(ss1)
+        self.s1dm  = mops.ket2dm(self.s1); 
+        self.s2dm  = mops.ket2dm(self.s2); 
+        self.ss0dm = mops.ket2dm(self.ss0);
+        self.ss1dm = mops.ket2dm(self.ss1)
 
         # Define the logical states
-        self.L0 = mops.ket2dm((s2 + s0) / np.sqrt(2))
-        self.L1 = mops.ket2dm((s2 - s0) / np.sqrt(2))
+        self.L0 = mops.ket2dm((self.s2 + self.s0) / np.sqrt(2))
+        self.L1 = mops.ket2dm((self.s2 - self.s0) / np.sqrt(2))
+
+        # Identity operators
+        self.Is = np.eye(self.Ns)
+        self.Ip = np.eye(self.Np)
 
 
     def set_init_state(self, logical_state='L0'):
@@ -99,10 +103,6 @@ class vslq_mops(base_cqed_mops):
         operators for the primary and shadow degrees of freedom
         """
 
-        # Identity operators
-        self.Is = np.eye(self.Ns)
-        self.Ip = np.eye(self.Np)
-
         # Projection operators |1Ll> <1Ll|, |1Lr> <1Lr|
         self.Pl1 = mops.tensor(self.s1dm, self.Ip, self.Is, self.Is)
         self.Pr1 = mops.tensor(self.Ip, self.s1dm, self.Is, self.Is)
@@ -125,8 +125,9 @@ class vslq_mops(base_cqed_mops):
                 + mops.dag(self.apr)@mops.dag(self.apr)) / np.sqrt(2)
 
         ## Set the logical state operator
-        self.pL = 0.5 * self.Xl * (1. + self.Xl*self.Xr) * (1. - self.Pl1) \
-                  * (1 - self.Pr1)   
+        self.Ifull = mops.tensor(self.Ip, self.Ip, self.Is, self.Is)
+        self.pL = 0.5 * self.Xl @ (self.Ifull + self.Xl@self.Xr) \
+                  @ (self.Ifull - self.Pl1) @ (self.Ifull - self.Pr1)
 
 
     def set_H(self, tpts, args):

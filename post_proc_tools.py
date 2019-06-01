@@ -521,7 +521,8 @@ def post_fit_exp(T1p):
 
         ## Decimate the data
         defac = 1 # if tpts.size < 50000 else 1000 
-        tpts = tpts[0::defac]; p0 = p0[0::defac]
+        tpts = tpts[0::defac];
+        p0 = p0[0::defac]
 
         ## Return the covariance matrix and optimal values
         popt, pcov = curve_fit(fit_fun, tpts, p0, maxfev=10000)

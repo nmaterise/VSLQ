@@ -124,7 +124,7 @@ def ket2dm(psi):
 
     """
 
-    return np.outer(dag(psi), psi)
+    return psi @ dag(psi)
 
 
 def expect(op, rho):

@@ -16,6 +16,72 @@ import traceback
 np.seterr(all='raise')
 
 
+class bkeuler(object):
+    """
+    Backward Euler integration scheme of the vector equation
+    
+    dy / dt = A y
+    
+    y_n+1 = (I - hA)^-1 y_n
+
+    """
+
+    def __init__(self, y, tpts, dt, **kwargs):
+        """
+        Backward Euler constructor 
+    
+        Parameters:
+        ----------
+
+        y:      solution vector at t=t0
+        tpts:   times to compute y
+        dt:     time step 
+
+        """
+
+        # Set the arguments and keyword arguments
+        self.__dict__.update(locals())
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+        # Store the class members for the initial y and time step
+        self.y0 = y; self.tpts = tpts; self.dt = dt; self.A = A
+
+
+    def inv1minA(self, tpts, h, **kwargs):
+        """
+        Perform the step (I - hA)^-1
+        """
+
+        pass
+
+
+    def solver(self, **kwargs):
+        """
+        Run the backward Euler solver routine, given the right hand side
+        operator, A
+        """
+
+        # Load the class members into "registers"
+        tpts = self.tpts
+        y0 = self.y0
+        h = self.dt
+    
+        # Initialize y as a copy of initial values
+        y = [y0] * tpts.size
+
+        # Iterate over all times
+        for n in range(1, tpts.size):
+
+            # y_n = (1 - hA)^-1 * y_n-1
+            y[n] = self.inv1minA(tpts, h, kwargs) @ y[n-1]
+
+
+        # Return the result as a numpy array
+        
+        return np.array(y)
+
+
 class rk4:
     """
     Runge-Kutta 4 class
@@ -101,7 +167,7 @@ class rk4:
         if h < self.tpts.max() / self.tpts.size:
             rho_out = rho[0::int(tpts.size // self.tpts.size)]
         else:
-            rho_out = rho        
+            rho_out = rho
     
 
         return rho_out
