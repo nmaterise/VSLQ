@@ -26,16 +26,17 @@ class bkeuler(object):
 
     """
 
-    def __init__(self, y, tpts, dt, **kwargs):
+    def __init__(self, y0, tpts, dt, is_A_const, **kwargs):
         """
         Backward Euler constructor 
     
         Parameters:
         ----------
 
-        y:      solution vector at t=t0
-        tpts:   times to compute y
-        dt:     time step 
+        y0:             solution vector at t=t0
+        tpts:           times to compute y
+        dt:             time step
+        is_A_const:     check if A is constant in time
 
         """
 
@@ -45,18 +46,33 @@ class bkeuler(object):
             setattr(self, k, v)
 
         # Store the class members for the initial y and time step
-        self.y0 = y; self.tpts = tpts; self.dt = dt; self.A = A
+        self.y0 = y0; self.tpts = tpts; self.dt = dt;
+        self.is_A_const = is_A_const
 
-
-    def inv1minA(self, tpts, h, **kwargs):
+    
+    def rhs_A(self, tpts):
         """
-        Perform the step (I - hA)^-1
+        User defined computation of the right hand side matrix A
         """
 
         pass
 
 
-    def solver(self, **kwargs):
+    def inv1minA(self, tpts, h):
+        """
+        Perform the step (I - hA)^-1
+        """
+
+        # Get the current value of A
+        A = self.rhs_A(tpts) 
+        B = np.eye(A.shape[0]) - h*A
+        
+        # Return (I - hA)^-1
+
+        return np.linalg.inv(B)
+
+
+    def solver(self):
         """
         Run the backward Euler solver routine, given the right hand side
         operator, A
@@ -70,12 +86,26 @@ class bkeuler(object):
         # Initialize y as a copy of initial values
         y = [y0] * tpts.size
 
-        # Iterate over all times
-        for n in range(1, tpts.size):
+        # Check if A in constant in time
+        if self.is_A_const:
+            
+            # Compute the rhs matrix once
+            oneminAinv = self.inv1minA(tpts, h)
 
-            # y_n = (1 - hA)^-1 * y_n-1
-            y[n] = self.inv1minA(tpts, h, kwargs) @ y[n-1]
+            # Iterate over all times
+            for n in range(1, tpts.size):
 
+                # y_n = (1 - hA)^-1 * y_n-1
+                y[n] = oneminAinv @ y[n-1]
+        
+        # Otherwise update on each time step
+        else:
+
+            # Iterate over all times
+            for n in range(1, tpts.size):
+
+                # y_n = (1 - hA)^-1 * y_n-1
+                y[n] = self.inv1minA(tpts, h, kwargs) @ y[n-1]
 
         # Return the result as a numpy array
         

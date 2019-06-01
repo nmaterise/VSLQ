@@ -4,6 +4,7 @@
 ## Class inheritance structure
 ```bash
 | -- matrix_ops (module)
+|    | -- bkeuler(class)
 |    | -- rk4 (class)
 |         | -- langevin_rk4 (class)
 |         | -- mesolve_rk4 (class)
@@ -13,8 +14,18 @@
 |                   | -- transmon_disp_mops (class) 
 |                   | -- transmon_long_mops (class)
 |                   | -- vslq_mops (class)
+|                   | -- jaynes_cummings (class)
 | -- post_proc_tools (module)
 ```
+
+## Types of solvers
+    * rk4
+        - Explicit fourth-order Runge-Kutta, fixed time step
+        - Currently tested for cases below
+    * bkeuler
+        - Backward Euler, fixed time step
+        - Uses the superoperator and vectorized density matrix approach
+        - Untested as of 180531
 
 ## Tests of solvers
 ### Runge-Kutta Sanity checks
@@ -28,6 +39,8 @@
           been validated against QuTip examples
         - Includes basic qubit-oscillator Jaynes-Cummings dynamics including
           unitary and Lindblad loss examples
+    * jaynes_cummings.py
+        - Uses the base_cqed_mops class to validate QuTip examples
 
 ### Langevin Equations
     * ode_solver.py

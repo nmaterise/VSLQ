@@ -6,6 +6,10 @@ Tests of the VSLQ with loss terms included
 
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
+vslq_dir = '/home/nmaterise/mines/research/VSLQ'
+if vslq_dir not in sys.path:
+    sys.path.append(vslq_dir)
 from vslq import vslq_mops
 from scipy.optimize import curve_fit
 import matrix_ops as mops
@@ -153,7 +157,7 @@ def plot_exp_data():
 if __name__ == '__main__':
     
     # test_vslq_dissipative()
-    test_parfor_get_gamma()
-    # plot_exp_data()
+    # test_parfor_get_gamma()
+    plot_exp_data()
 
 
