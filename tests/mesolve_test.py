@@ -286,6 +286,96 @@ def test_qho2_mesolve_driven(N):
     plt.savefig('figs/qho2_n1n2_detuned_driven_%d.pdf' % N, format='pdf')
 
 
+def test_mesolve():
+    """
+    Tests the mesolve_rk4() class
+    """
+
+    # Setup a basic cavity system
+    Nc = 2;
+    Nq = 3;
+    a = mops.tensor(mops.qeye(Nq), mops.destroy(Nc))
+    b = mops.tensor(mops.destroy(Nq), mops.qeye(Nc))
+    wc = 5;
+    kappa = 0.1
+    dt = (1./kappa) / 1e2
+    tpts = np.linspace(0, 10/kappa, int(np.round((10/kappa)/dt)+1))
+
+    # Time independent Hamiltonian
+    H0 = wc*a.dag()*a
+    
+    # Time dependent Hamiltonian
+    Hc = (a + a.dag())
+    Hd = np.exp(-(tpts - tpts.max()/2)**2/(2*tpts.max()/6)**2)
+
+    # Form the total Hamiltonian and set the collapse operators
+    H = [H0, [Hc, Hd]]
+    cops = [kappa * a]
+    rho0 = mops.ket2dm(mops.tensor(mops.basis(Nq, 0), mops.basis(Nc, 0)))
+
+    # Setup the master equation solver instance
+    me_rk4 = mesolve_rk4(rho0, tpts, 4*tpts.max()/tpts.size, H, cops) 
+    rho_out = me_rk4.mesolve()
+
+    # Compute the expectation value of a^t a
+    a_avg = mops.expect(a, rho_out)
+
+    # Plot the results
+    plt.plot(tpts, a_avg.real, label=r'$\Re \langle a\rangle$')
+    plt.plot(tpts, a_avg.imag, label=r'$\Im \langle a\rangle$')
+    plt.legend(loc='best')
+    
+
+def test_mesolve_mops():
+    """
+    Tests the mesolve_rk4() class using the matrix_ops module
+    """
+
+    # Setup a basic cavity system
+    Nc = 16;
+    Nq = 3;
+    a = mops.tensor(np.eye(Nq), mops.destroy(Nc))
+    b = mops.destroy(Nq); bd = mops.dag(b)
+    sz = mops.tensor(bd@b, np.eye(Nc))
+    wc = 5; wq = 6;
+    kappa = 0.1; chi = kappa / 2.; g = np.sqrt(chi)
+    dt =(1./kappa) / 1e2
+    tpts = np.linspace(0, 10/kappa, int(np.round((10/kappa)/dt)+1))
+    # tpts_d = np.linspace(0, 10/kappa, 4*tpts.size)
+
+    # Time independent Hamiltonian
+    # H0 = wc*mops.dag(a)@a + wq*sz/2. + chi*mops.dag(a)@a@sz
+    # In rotating frame
+    H0 = g*(mops.dag(a) + a) @ sz
+    
+    # Time dependent Hamiltonian
+    Hc = (a + mops.dag(a))
+    # Hd = np.exp(-(tpts - tpts.max()/2)**2/(2*tpts.max()/6)**2) \
+    # * np.sin(wc*tpts)
+    # In rotating frame
+    Hd = np.exp(-(tpts - tpts.max()/2)**2/(tpts.max()/6)**2)
+
+    # Form the total Hamiltonian and set the collapse operators
+    H = [H0, [Hc, Hd]]
+    cops = [np.sqrt(kappa) * a]
+    rho0 = mops.ket2dm(mops.tensor(mops.basis(Nq, 0), mops.basis(Nc, 0)))
+    print('rho0:\n{}'.format(rho0))
+    print('Time = [%g, %g] ns' % (tpts.min(), tpts.max()))
+
+    # Setup the master equation solver instance
+    me_rk4 = mesolve_rk4(rho0, tpts, tpts.max()/(10*tpts.size), H, cops) 
+    rho_out = me_rk4.mesolve()
+
+    # Compute the expectation value of a^t a
+    a_avg = mops.expect(a, rho_out)
+    print('{}'.format(a_avg.real))
+
+    # Plot the results
+    plt.plot(kappa*tpts, a_avg.real,label=r'$\Re \langle a\rangle$')
+    plt.plot(kappa*tpts, a_avg.imag,label=r'$\Im \langle a\rangle$')
+    plt.xlabel(r'Time (1/$\kappa$)')
+    plt.legend(loc='best')
+
 if __name__ == '__main__':
     
     # This is a test of the population transfer between a harmonic

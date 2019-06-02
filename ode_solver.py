@@ -16,13 +16,13 @@ import traceback
 np.seterr(all='raise')
 
 
-class bkeuler(object):
+class implicitmdpt(object):
     """
-    Backward Euler integration scheme of the vector equation
+    Implicit midpoint integration scheme of the vector equation
     
-    dy / dt = A y
+    dy / dt = -A y
     
-    y_n+1 = (I - hA)^-1 y_n
+    y_n+1 = (I + h/2 A)^-1 (I - h/2 A) y_n
 
     """
 
@@ -58,9 +58,108 @@ class bkeuler(object):
         pass
 
 
-    def inv1minA(self, tpts, h):
+    def inv1pA1mA(self, tpts, h):
         """
-        Perform the step (I - hA)^-1
+        Perform the step (I + h/2A)^-1(I - h/2A)
+        """
+
+        # Get the current value of A
+        A = self.rhs_A(tpts) 
+        B = np.eye(A.shape[0]) + 0.5*h*A
+        C = np.eye(A.shape[0]) - 0.5*h*A
+        D = np.linalg.inv(B) @ C
+
+        
+        # Return (I + h/2 A)^-1 (I - h/2 A)
+
+        return D
+
+    def solver(self):
+        """
+        Run the backward Euler solver routine, given the right hand side
+        operator, A
+        """
+
+        # Load the class members into "registers"
+        tpts = self.tpts
+        y0 = self.y0
+        h = self.dt
+    
+        # Initialize y as a copy of initial values
+        y = [y0] * tpts.size
+
+        # Check if A in constant in time
+        if self.is_A_const:
+            
+            # Compute the rhs matrix once
+            oneminAinv = self.inv1pA1mA(tpts, h)
+
+            # Iterate over all times
+            for n in range(1, tpts.size):
+
+                # y_n = (1 - hA)^-1 * y_n-1
+                y[n] = oneminAinv @ y[n-1]
+        
+        # Otherwise update on each time step
+        else:
+
+            # Iterate over all times
+            for n in range(1, tpts.size):
+
+                # y_n = (1 - hA)^-1 * y_n-1
+                y[n] = self.inv1pA1mA(tpts, h, kwargs) @ y[n-1]
+
+        # Return the result as a numpy array
+        
+        return np.array(y)
+
+
+
+class bkeuler(object):
+    """
+    Backward Euler integration scheme of the vector equation
+    
+    dy / dt = -A y
+    
+    y_n+1 = (I + hA)^-1 y_n
+
+    """
+
+    def __init__(self, y0, tpts, dt, is_A_const, **kwargs):
+        """
+        Backward Euler constructor 
+    
+        Parameters:
+        ----------
+
+        y0:             solution vector at t=t0
+        tpts:           times to compute y
+        dt:             time step
+        is_A_const:     check if A is constant in time
+
+        """
+
+        # Set the arguments and keyword arguments
+        self.__dict__.update(locals())
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+        # Store the class members for the initial y and time step
+        self.y0 = y0; self.tpts = tpts; self.dt = dt;
+        self.is_A_const = is_A_const
+
+    
+    def rhs_A(self, tpts):
+        """
+        User defined computation of the right hand side matrix A
+        """
+
+        pass
+
+
+    def inv1pA(self, tpts, h):
+        """
+        Perform the step (I + hA)^-1
         """
 
         # Get the current value of A
@@ -90,7 +189,7 @@ class bkeuler(object):
         if self.is_A_const:
             
             # Compute the rhs matrix once
-            oneminAinv = self.inv1minA(tpts, h)
+            oneminAinv = self.inv1pA(tpts, h)
 
             # Iterate over all times
             for n in range(1, tpts.size):
@@ -105,7 +204,7 @@ class bkeuler(object):
             for n in range(1, tpts.size):
 
                 # y_n = (1 - hA)^-1 * y_n-1
-                y[n] = self.inv1minA(tpts, h, kwargs) @ y[n-1]
+                y[n] = self.inv1pA(tpts, h, kwargs) @ y[n-1]
 
         # Return the result as a numpy array
         
@@ -368,97 +467,6 @@ class langevin_rk4(rk4):
         ares = self.solver()
 
         return np.array(ares)
-
-
-def test_mesolve():
-    """
-    Tests the mesolve_rk4() class
-    """
-
-    # Setup a basic cavity system
-    Nc = 2;
-    Nq = 3;
-    a = mops.tensor(mops.qeye(Nq), mops.destroy(Nc))
-    b = mops.tensor(mops.destroy(Nq), mops.qeye(Nc))
-    wc = 5;
-    kappa = 0.1
-    dt = (1./kappa) / 1e2
-    tpts = np.linspace(0, 10/kappa, int(np.round((10/kappa)/dt)+1))
-
-    # Time independent Hamiltonian
-    H0 = wc*a.dag()*a
-    
-    # Time dependent Hamiltonian
-    Hc = (a + a.dag())
-    Hd = np.exp(-(tpts - tpts.max()/2)**2/(2*tpts.max()/6)**2)
-
-    # Form the total Hamiltonian and set the collapse operators
-    H = [H0, [Hc, Hd]]
-    cops = [kappa * a]
-    rho0 = mops.ket2dm(mops.tensor(mops.basis(Nq, 0), mops.basis(Nc, 0)))
-
-    # Setup the master equation solver instance
-    me_rk4 = mesolve_rk4(rho0, tpts, 4*tpts.max()/tpts.size, H, cops) 
-    rho_out = me_rk4.mesolve()
-
-    # Compute the expectation value of a^t a
-    a_avg = mops.expect(a, rho_out)
-
-    # Plot the results
-    plt.plot(tpts, a_avg.real, label=r'$\Re \langle a\rangle$')
-    plt.plot(tpts, a_avg.imag, label=r'$\Im \langle a\rangle$')
-    plt.legend(loc='best')
-    
-
-def test_mesolve_mops():
-    """
-    Tests the mesolve_rk4() class using the matrix_ops module
-    """
-
-    # Setup a basic cavity system
-    Nc = 16;
-    Nq = 3;
-    a = mops.tensor(np.eye(Nq), mops.destroy(Nc))
-    b = mops.destroy(Nq); bd = mops.dag(b)
-    sz = mops.tensor(bd@b, np.eye(Nc))
-    wc = 5; wq = 6;
-    kappa = 0.1; chi = kappa / 2.; g = np.sqrt(chi)
-    dt =(1./kappa) / 1e2
-    tpts = np.linspace(0, 10/kappa, int(np.round((10/kappa)/dt)+1))
-    # tpts_d = np.linspace(0, 10/kappa, 4*tpts.size)
-
-    # Time independent Hamiltonian
-    # H0 = wc*mops.dag(a)@a + wq*sz/2. + chi*mops.dag(a)@a@sz
-    # In rotating frame
-    H0 = g*(mops.dag(a) + a) @ sz
-    
-    # Time dependent Hamiltonian
-    Hc = (a + mops.dag(a))
-    # Hd = np.exp(-(tpts - tpts.max()/2)**2/(2*tpts.max()/6)**2) \
-    # * np.sin(wc*tpts)
-    # In rotating frame
-    Hd = np.exp(-(tpts - tpts.max()/2)**2/(tpts.max()/6)**2)
-
-    # Form the total Hamiltonian and set the collapse operators
-    H = [H0, [Hc, Hd]]
-    cops = [np.sqrt(kappa) * a]
-    rho0 = mops.ket2dm(mops.tensor(mops.basis(Nq, 0), mops.basis(Nc, 0)))
-    print('rho0:\n{}'.format(rho0))
-    print('Time = [%g, %g] ns' % (tpts.min(), tpts.max()))
-
-    # Setup the master equation solver instance
-    me_rk4 = mesolve_rk4(rho0, tpts, tpts.max()/(10*tpts.size), H, cops) 
-    rho_out = me_rk4.mesolve()
-
-    # Compute the expectation value of a^t a
-    a_avg = mops.expect(a, rho_out)
-    print('{}'.format(a_avg.real))
-
-    # Plot the results
-    plt.plot(kappa*tpts, a_avg.real,label=r'$\Re \langle a\rangle$')
-    plt.plot(kappa*tpts, a_avg.imag,label=r'$\Im \langle a\rangle$')
-    plt.xlabel(r'Time (1/$\kappa$)')
-    plt.legend(loc='best')
 
 
 def test_langevin_solve():
