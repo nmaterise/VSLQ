@@ -65,9 +65,9 @@ class bkeuler(object):
 
         # Get the current value of A
         A = self.rhs_A(tpts) 
-        B = np.eye(A.shape[0]) - h*A
+        B = np.eye(A.shape[0]) + h*A
         
-        # Return (I - hA)^-1
+        # Return (I + hA)^-1
 
         return np.linalg.inv(B)
 
