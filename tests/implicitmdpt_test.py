@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 class exp_impmp(implicitmdpt):
     """
-    Exponential decay, Backward Euler method
+    Exponential decay, Implicit Midpoint method
     """
 
     def __init__(self, y0, tpts, dt, is_A_const=True, lam=[1., 2.]):
@@ -41,7 +41,7 @@ class exp_impmp(implicitmdpt):
 
 class sho_impmp(implicitmdpt):
     """
-    Simple Harmonic Oscillator in 1D to test Backward Euler
+    Simple Harmonic Oscillator in 1D to test Implicit Midpoint
     """
     
     def __init__(self, y0, tpts, dt, is_A_const=True, w=1, m=1):
@@ -66,7 +66,7 @@ class sho_impmp(implicitmdpt):
 
 class sho_damped_impmp(implicitmdpt):
     """
-    Damped harmonic oscillator in 1D to test Backward Euler
+    Damped harmonic oscillator in 1D to test Implicit Midpoint
     """
     
     def __init__(self, y0, tpts, dt, is_A_const=True, w=1, m=1, gamma=1):
@@ -86,6 +86,35 @@ class sho_damped_impmp(implicitmdpt):
 
         # Compute the rhs matrix A
         A = np.array([[2*self.gamma/self.m, -1/self.m], [self.m*self.w**2, 0]])
+
+        return A
+
+
+class sho_damped_driven_impmp(implicitmdpt):
+    """
+    Damped harmonic oscillator in 1D to test implicit midpoint
+    """
+    
+    def __init__(self, y0, tpts, dt, is_A_const=False,
+                 w=1, m=1, gamma=1, wd=2, f=np.sin):
+        """
+        Class constructor
+        """
+
+        # Call the base class constructor
+        implicitmdpt.__init__(self, y0, tpts, dt, 
+                              is_A_const, w=w, m=m,
+                              gamma=gamma, wd=wd, f=f)
+
+
+    def rhs_A(self, t):
+        """
+        User defined computation of the right hand side matrix A
+        """
+
+        # Compute the rhs matrix A
+        A = np.array([[2*self.gamma/self.m, -1/self.m], 
+                      [self.m*self.f(t, self.wd)*self.w**2, 0]])
 
         return A
 
@@ -218,8 +247,69 @@ def test_sho_damped_impmp():
     plt.savefig('figs/sho_damped_impmp_demo.pdf', format='pdf')
 
 
+def test_sho_damped_driven_impmp():
+    """
+    Test the above class with simple initial conditions
+    """
+
+    # Set the frequency of oscillation
+    w = 1; gamma = w / 100; wd = 2*w
+    tpts = 2*np.pi*np.linspace(0, 20, 2001)
+    dt = tpts.max() / (tpts.size)
+
+    print('\nDamped, driven harmonic oscillator:\n\nw: %g\ngamma: %g\n'\
+            % (w, gamma))
+
+    # Initialize the x and y as 1
+    yinit = np.array([[0], [1]])
+
+    def f(t, wdd):
+        return np.sin(wdd*t)
+
+    # Run the code
+    my_sho_damped_driven_impmp = sho_damped_driven_impmp(yinit, tpts, dt,
+                         is_A_const=True,
+                         w=w, m=1, gamma=gamma, wd=wd, f=f)
+    res = np.asarray(my_sho_damped_driven_impmp.solver())
+    
+
+    print('2*gamma: %g' % (2*gamma))
+    print('dt: %g' % (dt))
+    print('dt - 2*gamma: %e' % (dt - 2*gamma))
+
+    
+    # Fit the data to an exponentially damped sinusoid
+    def fit_fun(x, a, b, c, d, e):
+        fout = a * np.exp(-b*x) * np.sin(c*x + d) + e
+        return fout
+
+    # Get the fitting parameters
+    qopt0 = [1., gamma+dt, w, 0., 0.]
+    popt0 = [1., gamma+dt, w, np.pi/2, 0.]
+    q = res[:, 0]; p = res[:, 1];
+    qopt, qcov = curve_fit(fit_fun, tpts, q.ravel(), 
+                            p0=qopt0, maxfev=10000)
+    popt, pcov = curve_fit(fit_fun, tpts, p.ravel(),
+                            p0=popt0, maxfev=10000)
+
+    print('Optimized parameters:\n\nqopt:\n{}\npopt:\n{}\n'\
+            .format(qopt, popt))
+    
+    # Plot the results
+    df = 10
+    plt.plot(tpts[0::df], res[:,0][0::df], 'bo', label=r'q')
+    plt.plot(tpts[0::df], res[:,1][0::df], 'ro', label=r'p')
+    plt.plot(tpts, fit_fun(tpts, *qopt), 'b-', label=r'q-fit')
+    plt.plot(tpts, fit_fun(tpts, *popt), 'r-', label=r'p-fit')
+    plt.legend(loc='best')
+    # plt.show()
+    plt.savefig('figs/sho_damped_driven_impmp_demo.pdf', format='pdf')
+
+
+
 if __name__ == '__main__':
 
-    test_sho_impmp()
+    # test_sho_impmp()
     # test_sho_damped_impmp()
     # test_exp_impmp()
+    test_sho_damped_driven_impmp()

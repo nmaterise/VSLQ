@@ -50,7 +50,7 @@ class implicitmdpt(object):
         self.is_A_const = is_A_const
 
     
-    def rhs_A(self, tpts):
+    def rhs_A(self, t):
         """
         User defined computation of the right hand side matrix A
         """
@@ -58,18 +58,18 @@ class implicitmdpt(object):
         pass
 
 
-    def inv1pA1mA(self, tpts, h):
+    def inv1pA1mA(self, t, h):
         """
         Perform the step (I + h/2A)^-1(I - h/2A)
         """
 
         # Get the current value of A
-        A = self.rhs_A(tpts) 
-        B = np.eye(A.shape[0]) + 0.5*h*A
-        C = np.eye(A.shape[0]) - 0.5*h*A
+        A1 = self.rhs_A(t) 
+        A2 = self.rhs_A(t+h)
+        B = np.eye(A1.shape[0]) + 0.5*h*A2
+        C = np.eye(A2.shape[0]) - 0.5*h*A1
         D = np.linalg.inv(B) @ C
 
-        
         # Return (I + h/2 A)^-1 (I - h/2 A)
 
         return D
@@ -92,7 +92,8 @@ class implicitmdpt(object):
         if self.is_A_const:
             
             # Compute the rhs matrix once
-            oneminAinv = self.inv1pA1mA(tpts, h)
+            # Time-independent, just pass first time
+            oneminAinv = self.inv1pA1mA(tpts[0], h)
 
             # Iterate over all times
             for n in range(1, tpts.size):
@@ -107,7 +108,7 @@ class implicitmdpt(object):
             for n in range(1, tpts.size):
 
                 # y_n = (1 - hA)^-1 * y_n-1
-                y[n] = self.inv1pA1mA(tpts, h, kwargs) @ y[n-1]
+                y[n] = self.inv1pA1mA(tpts[n-1], h, kwargs) @ y[n-1]
 
         # Return the result as a numpy array
         
@@ -149,7 +150,7 @@ class bkeuler(object):
         self.is_A_const = is_A_const
 
     
-    def rhs_A(self, tpts):
+    def rhs_A(self, t):
         """
         User defined computation of the right hand side matrix A
         """
@@ -157,13 +158,13 @@ class bkeuler(object):
         pass
 
 
-    def inv1pA(self, tpts, h):
+    def inv1pA(self, t, h):
         """
         Perform the step (I + hA)^-1
         """
 
         # Get the current value of A
-        A = self.rhs_A(tpts) 
+        A = self.rhs_A(t+h) 
         B = np.eye(A.shape[0]) + h*A
         
         # Return (I + hA)^-1
@@ -189,7 +190,7 @@ class bkeuler(object):
         if self.is_A_const:
             
             # Compute the rhs matrix once
-            oneminAinv = self.inv1pA(tpts, h)
+            oneminAinv = self.inv1pA(tpts[0], h)
 
             # Iterate over all times
             for n in range(1, tpts.size):
@@ -204,7 +205,7 @@ class bkeuler(object):
             for n in range(1, tpts.size):
 
                 # y_n = (1 - hA)^-1 * y_n-1
-                y[n] = self.inv1pA(tpts, h, kwargs) @ y[n-1]
+                y[n] = self.inv1pA(tpts[n-1], h, kwargs) @ y[n-1]
 
         # Return the result as a numpy array
         
