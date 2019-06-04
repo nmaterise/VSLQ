@@ -5,6 +5,10 @@ using a quantum harmonic oscillator with and without dissipation
 
 """
 
+vslq_path = '/home/nmaterise/mines/research/VSLQ'
+import sys
+if vslq_path not in sys.path:
+    sys.path.append(vslq_path)
 import numpy as np
 import matplotlib.pyplot as plt
 import matrix_ops as mops
@@ -12,6 +16,7 @@ import post_proc_tools as ppt
 from qubit_cavity import base_cqed_mops
 from ode_solver import mesolve_rk4
 import drive_tools as dts
+
 
 class qho(base_cqed_mops):
     """
@@ -383,5 +388,6 @@ if __name__ == '__main__':
     # and oscillator.
     # There is a similar example in the QuTip documentation that I used
     # to validate this test related to the Jaynes-Cummings model
+    test_qho_mesolve_fock_decay(1)
     # test_qho2_mesolve_fock_decay(1)
-    test_qho2_mesolve_driven(0)
+    # test_qho2_mesolve_driven(0)

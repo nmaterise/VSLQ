@@ -3,8 +3,11 @@
 
 ## Class inheritance structure
 ```bash
+| -- super_ops (module)
 | -- matrix_ops (module)
-|    | -- bkeuler(class)
+|    | -- implicitmdpt (class)
+|         | -- mesolve_super_impmdpt (class)
+|    | -- bkeuler (class)
 |    | -- rk4 (class)
 |         | -- langevin_rk4 (class)
 |         | -- mesolve_rk4 (class)
@@ -16,6 +19,7 @@
 |                   | -- vslq_mops (class)
 |                   | -- jaynes_cummings (class)
 | -- post_proc_tools (module)
+| -- drive_tools (module)
 ```
 
 ## Types of solvers
@@ -24,16 +28,26 @@
         - Currently tested for cases below
     * bkeuler
         - Backward Euler, fixed time step
-        - Uses the superoperator and vectorized density matrix approach
-        - Untested as of 180531
+    * implictmdpt
+        - Implicit midpoint, fixed time step
 
 ## Tests of solvers
-### Runge-Kutta Sanity checks
-    * rk4_tests.py
+### Explicit Runge-Kutta
+    * rk4_test.py
         - Tests a classical harmonic oscillator to make sure the solver produces
           the correct dynamics for an undriven, undamped system
 
-### Lindblad Equation tests
+### Backward Euler
+    * bkeuler_test.py
+        - Tests simple damping, undamped and underdamped harmonic oscillator
+    
+### Implicit Midpoint
+    * implicitmdpt_test.py
+        - Tests simple damping, undamped and underdamped harmonic oscillator
+        - Also tests underdamped oscillator with time-dependent characteristic
+          frequency, w = w(t)
+
+### Lindblad Equation
     * mesolve_test.py
         - Runs basic time-independent tests of the Lindblad solver that have
           been validated against QuTip examples
@@ -42,11 +56,10 @@
     * jaynes_cummings.py
         - Uses the base_cqed_mops class to validate QuTip examples
 
-### Langevin Equations
-    * ode_solver.py
-        - Includes another class to solve linear Langevin equations related to
-          the input-output theory for transmons in the dispersive and
-          longitudinal coupling cases
+### VSLQ Dynamics
+    * vslq_lossy_tests.py
+        - Exercises the VSLQ Hamiltonian model, calculating the logical lifetime
+          improvement factor for a range of transmon T1 times
 
 ## Driver Files
     * qubit_cavity.py

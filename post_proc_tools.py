@@ -80,11 +80,11 @@ def plot_wigner(xvec, W,
 
     # Write the results to file
     if file_ext is not None:
-        fig.savefig('figs/wigner_%s.eps' % file_ext, format='eps') 
+        fig.savefig('figs/wigner_%s.pdf' % file_ext, format='pdf') 
         fig.savefig('figs/wigner_%s.png' % file_ext, format='png') 
     else:
         tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
-        fig.savefig('figs/wigner_%s.eps' % tstamp, format='eps') 
+        fig.savefig('figs/wigner_%s.pdf' % tstamp, format='pdf') 
         fig.savefig('figs/wigner_%s.png' % tstamp, format='png') 
         
 
@@ -109,10 +109,10 @@ def plot_expect(tpts, op_avg, op_name='',
     
     # Save the figure to file
     if file_ext is not None:
-        fig.savefig('figs/expect_%s.eps' % file_ext, format='eps') 
+        fig.savefig('figs/expect_%s.pdf' % file_ext, format='pdf') 
     else:
         tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
-        fig.savefig('figs/expect_%s.eps' % tstamp, format='eps') 
+        fig.savefig('figs/expect_%s.pdf' % tstamp, format='pdf') 
 
 def plot_expect_phase_ab(tpts, op_a, op_b, 
                             opname, snames, 
@@ -168,14 +168,14 @@ def plot_expect_phase_ab(tpts, op_a, op_b,
     
     # Save the figure to file
     if fext is not None:
-        fig.savefig('figs/%s_expect_phase_%s.eps' \
-                % (opname, fext), format='eps') 
+        fig.savefig('figs/%s_expect_phase_%s.pdf' \
+                % (opname, fext), format='pdf') 
         fig.savefig('figs/%s_expect_phase_%s.png' \
                 % (opname, fext), format='png') 
     else:
         tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
-        fig.savefig('figs/%s_expect_phase_%s_%s.eps' % (opname, fext, tstamp),
-                format='eps') 
+        fig.savefig('figs/%s_expect_phase_%s_%s.pdf' % (opname, fext, tstamp),
+                format='pdf') 
         fig.savefig('figs/%s_expect_phase_%s_%s.png' % (opname, fext, tstamp),
                 format='png') 
 
@@ -233,12 +233,12 @@ def plot_expect_complex_ab(op_a, op_b,
     
     # Save the figure to file
     if fext is not None:
-        fig.savefig('figs/%s_expect_%s.eps' % (opname, fext), format='eps') 
+        fig.savefig('figs/%s_expect_%s.pdf' % (opname, fext), format='pdf') 
         fig.savefig('figs/%s_expect_%s.png' % (opname, fext), format='png') 
     else:
         tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
-        fig.savefig('figs/%s_expect_%s_%s.eps' % (opname, fext, tstamp),
-                format='eps') 
+        fig.savefig('figs/%s_expect_%s_%s.pdf' % (opname, fext, tstamp),
+                format='pdf') 
         fig.savefig('figs/%s_expect_%s_%s.png' % (opname, fext, tstamp),
                 format='png') 
     
@@ -282,7 +282,7 @@ def plot_phase_traces(tpts, adata, nkappas, drvs, kappa, tscale='ns'):
     
     # Save the result to file
     tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
-    fig.savefig('figs/traces_phase_diagram_%s.eps' % tstamp, format='eps')
+    fig.savefig('figs/traces_phase_diagram_%s.pdf' % tstamp, format='pdf')
     fig.savefig('figs/traces_phase_diagram_%s.png' % tstamp, format='png')
 
 
@@ -323,8 +323,8 @@ def plot_phase_ss(adata, tpts, nkappas, kappa, g, fext='', use_tseries=False):
     
     # Save the result to file
     tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
-    fig.savefig('figs/%s_ss_phase_diagram_%s.eps' % (fext, tstamp),
-            format='eps')
+    fig.savefig('figs/%s_ss_phase_diagram_%s.pdf' % (fext, tstamp),
+            format='pdf')
     fig.savefig('figs/%s_ss_phase_diagram_%s.png' % (fext, tstamp),
             format='png')
 
@@ -382,8 +382,8 @@ def plot_io_a(tpts, a0, ae, g, kappa, fext=''):
     
     # Save the result to file
     tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
-    fig.savefig('figs/%s_ssfull_phase_diagram_%s.eps' % (fext, tstamp),
-            format='eps')
+    fig.savefig('figs/%s_ssfull_phase_diagram_%s.pdf' % (fext, tstamp),
+            format='pdf')
     fig.savefig('figs/%s_ssfull_phase_diagram_%s.png' % (fext, tstamp),
             format='png')
 
@@ -465,8 +465,8 @@ def plot_io_a_full(tpts, a0_d, ae_d, a0_l, ae_l,
     
     # Save the result to file
     tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
-    fig.savefig('figs/%s_ssfull_phase_diagram_%s.eps' % (fext, tstamp),
-            format='eps')
+    fig.savefig('figs/%s_ssfull_phase_diagram_%s.pdf' % (fext, tstamp),
+            format='pdf')
     fig.savefig('figs/%s_ssfull_phase_diagram_%s.png' % (fext, tstamp),
             format='png')
 

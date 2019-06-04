@@ -119,6 +119,14 @@ class sho_damped_driven_impmp(implicitmdpt):
         return A
 
 
+def l2error(x1, x2):
+    """
+    Compute the l2 error between two arrays
+    """
+    
+    return np.sqrt(sum([(a - b)**2 for a, b in zip(x1, x2)]))
+
+
 def test_exp_impmp():
     """
     Test the above class with simple initial conditions
@@ -154,6 +162,9 @@ def test_exp_impmp():
     print('lam - dt: {}'.format(lam - dt))
     print('Optimized parameters:\n\nqopt:\n{}\npopt:\n{}\n'\
             .format(qopt, popt))
+
+    # Fitting error
+    print('Fitting rms error: %g\n' % l2error(fit_fun(tpts, *qopt), q.ravel()))
     
     # Plot the results
     df = 10
@@ -183,11 +194,29 @@ def test_sho_impmp():
     my_sho_impmp = sho_impmp(yinit, tpts, dt, is_A_const=True, w=w, m=1)
     res = np.asarray(my_sho_impmp.solver())
 
-    print('res.shape: {}'.format(res.shape))
+
+    # Fit the data to an exponentially damped sinusoid
+    def fit_fun(x, a, b, c, d):
+        fout = a * np.sin(b*x + c) + d 
+        return fout
+
+    # Get the fitting parameters
+    q = res[:, 0]; p = res[:, 1];
+    qopt, qcov = curve_fit(fit_fun, tpts, q.ravel(), maxfev=10000)
+    popt, pcov = curve_fit(fit_fun, tpts, p.ravel(), maxfev=10000)
+
+    print('Optimized parameters:\n\nqopt:\n{}\npopt:\n{}\n'\
+            .format(qopt, popt))
+
+    # Fitting error
+    print('Fitting rms error: %g\n' % l2error(fit_fun(tpts, *qopt), q.ravel()))
     
     # Plot the results
-    plt.plot(tpts, res[:,0], label=r'q')
-    plt.plot(tpts, res[:,1], label=r'p')
+    df = 10
+    plt.plot(tpts[0::df], res[:,0][0::df], 'bo', label=r'q')
+    plt.plot(tpts[0::df], res[:,1][0::df], 'ro', label=r'p')
+    plt.plot(tpts, fit_fun(tpts, *qopt), 'b-', label=r'q-fit')
+    plt.plot(tpts, fit_fun(tpts, *popt), 'r-', label=r'p-fit')
     plt.legend(loc='best')
     # plt.show()
     plt.savefig('figs/sho_impmp_demo.pdf', format='pdf')
@@ -309,7 +338,7 @@ def test_sho_damped_driven_impmp():
 
 if __name__ == '__main__':
 
-    # test_sho_impmp()
+    test_sho_impmp()
     # test_sho_damped_impmp()
     # test_exp_impmp()
-    test_sho_damped_driven_impmp()
+    # test_sho_damped_driven_impmp()

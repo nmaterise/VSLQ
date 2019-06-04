@@ -28,7 +28,7 @@ class implicitmdpt(object):
 
     def __init__(self, y0, tpts, dt, is_A_const, **kwargs):
         """
-        Backward Euler constructor 
+        Implicit Midpoint constructor 
     
         Parameters:
         ----------
@@ -64,19 +64,19 @@ class implicitmdpt(object):
         """
 
         # Get the current value of A
-        A1 = self.rhs_A(t) 
-        A2 = self.rhs_A(t+h)
-        B = np.eye(A1.shape[0]) + 0.5*h*A2
-        C = np.eye(A2.shape[0]) - 0.5*h*A1
-        D = np.linalg.inv(B) @ C
+        An = self.rhs_A(t) 
+        Anp1 = self.rhs_A(t+h)
+        I = np.eye(An.shape[0])
+        D = np.linalg.inv(I + 0.5*h*Anp1) @ (I - 0.5*h*An)
 
-        # Return (I + h/2 A)^-1 (I - h/2 A)
+        # Return (I + h/2 A_n+1)^-1 (I - h/2 A_n)
 
         return D
 
+
     def solver(self):
         """
-        Run the backward Euler solver routine, given the right hand side
+        Run the Implicit Midpoint solver routine, given the right hand side
         operator, A
         """
 
@@ -113,7 +113,6 @@ class implicitmdpt(object):
         # Return the result as a numpy array
         
         return np.array(y)
-
 
 
 class bkeuler(object):
