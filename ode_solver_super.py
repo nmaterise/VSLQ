@@ -7,6 +7,7 @@ import super_ops as sops
 import matrix_ops as mops
 from ode_solver import implicitmdpt, rk4
 import numpy as np
+from scipy.interpolate import interp1d as interp
 
 
 class mesolve_super_impmdpt(implicitmdpt):

@@ -389,7 +389,7 @@ if __name__ == '__main__':
     # and oscillator.
     # There is a similar example in the QuTip documentation that I used
     # to validate this test related to the Jaynes-Cummings model
-    test_qho_mesolve_fock_decay(1)
+    # test_qho_mesolve_fock_decay(1)
     # test_qho_mesolve_coherent_decay(1)
     # test_qho2_mesolve_fock_decay(1)
-    # test_qho2_mesolve_driven(0)
+    test_qho2_mesolve_driven(0)

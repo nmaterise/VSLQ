@@ -143,23 +143,23 @@ def test_plot_ac(ttt):
     
     ## Time step 1/10 of largest energy scale
     Tdhalf = 4*np.pi / delta
-    dt0 = Tdhalf / 10
+    dt0 = Tdhalf / 20
 
     ## Number of points as N = tmax / dt + 1
     Ntpts = int(np.ceil(tmax / dt0)) + 1
     tpts = np.linspace(0, tmax, Ntpts)
 
     # First plot the logical state, then the photon loss states
-    fnames = ['data/rho_vslq_L0_%.1f_us_ac.bin' % ttt,
-              'data/rho_vslq_L1_%.1f_us_ac.bin' % ttt ]
+    fnames = ['data/rho_vslq_L0_%d_us_ac.bin' % ttt,
+              'data/rho_vslq_L1_%d_us_ac.bin' % ttt ]
     snames = ['L_0', 'L_1']
     plot_ac(tpts, fnames, snames, 'L0L1')
 
-    # First plot the logical state, then the photon loss states
-    fnames = ['data/rho_vslq_l1L0_%.1f_us_ac.bin' % ttt,
-              'data/rho_vslq_l1L1_%.1f_us_ac.bin' % ttt]
-    snames = ['\widetilde{L}_0', '\widetilde{L}_1']
-    plot_ac(tpts, fnames, snames, 'l1L0l1L1')
+    # # First plot the logical state, then the photon loss states
+    # fnames = ['data/rho_vslq_l1L0_%d_us_ac.bin' % ttt,
+    #           'data/rho_vslq_l1L1_%df_us_ac.bin' % ttt]
+    # snames = ['\widetilde{L}_0', '\widetilde{L}_1']
+    # plot_ac(tpts, fnames, snames, 'l1L0l1L1')
 
 
 def test_plot_all_expect(sname, fprefix, use_logical=True):
@@ -179,7 +179,7 @@ def test_plot_all_expect(sname, fprefix, use_logical=True):
     # Set the time array
     ## Time step 1/10 of largest energy scale
     Tdhalf = 4*np.pi / delta
-    dt0 = Tdhalf / 10
+    dt0 = Tdhalf / 20
 
     ## Decay time of transmons
     tmax = (0.05 / gammap)
@@ -243,16 +243,17 @@ if __name__ == '__main__':
     # snames = ['\widetilde{L}_0', '\widetilde{L}_1', 
     #           'L_0', 'L_1']
     snames = ['L_0', 'L_1']
+    snames = ['L_1']
     # snames = ['L_0L_0', 'L_1L_1']
     # fprefix = ['data/rho_vslq_L0_1_us', 'data/rho_vslq_L1_1_us',
     #            'data/rho_vslq_l1L1_1_us']#,
-    fprefix = ['data/rho_vslq_L0_1_us', 'data/rho_vslq_L1_1_us']
+    fprefix = ['data/rho_vslq_L1_1_us']
 
-    for ss, ff in zip(snames, fprefix):
-       test_write_exp_drv(ff)
-       test_plot_all_expect(ss, ff, True)
-       test_plot_all_expect(ss, ff, False)
+    # for ss, ff in zip(snames, fprefix):
+    #    # test_write_exp_drv(ff)
+    #    test_plot_all_expect(ss, ff, True)
+    #    test_plot_all_expect(ss, ff, False)
     
     # Run the above code on the following test case
-    # test_plot_ac(1.4)
+    test_plot_ac(1)
 
