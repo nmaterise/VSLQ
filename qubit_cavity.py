@@ -168,8 +168,10 @@ class base_cqed_sops(object):
         """
         # Use 1/T1 for the transmon and the line width of the cavity
         if not np.any(cops):
+            print('Zeroing out cops ...')
             self.cops = [np.zeros(cop.shape) for cop in cops]
         else:
+            print('Setting cops ...')
             self.cops = [np.sqrt(g)*cop for g, cop in zip(gammas, cops)]
 
 

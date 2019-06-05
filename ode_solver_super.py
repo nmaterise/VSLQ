@@ -13,10 +13,10 @@ class mesolve_super_impmdpt(implicitmdpt):
     """
     Lindblad master equation solver using the superoperator formulation
     
-    d / dt || p >>  = -L || p >>
+    d / dt || p >>  = L || p >>
 
-    L = i/hbar (I x H^T - H x I) 
-        - sum_j g_j ( c_j* x c_j - 1/2 (I x (c_j^t c_j) + (c_j^t c_j)^T x I) )
+    L = -i/hbar (H x I - I x H^T) 
+        sum_j g_j ( c_j x c_j* - 1/2 (I x (c_j^t c_j) + (c_j^t c_j)^T x I) )
 
     """
 
@@ -65,11 +65,10 @@ class mesolve_super_impmdpt(implicitmdpt):
         # Convert the collapse operators into superoperators acting on the
         # superket, || rho >>
         self.Ld = sum([ \
-               mops.tensor(c, mops.dag(c).T) 
+               mops.tensor(c, c.conj()) 
                 - 0.5 * (sops.op2sop(mops.dag(c)@c, 'l') \
                     + sops.op2sop(mops.dag(c)@c, 'r')) \
                     for c in self.cops])
-
 
 
     def get_Lu(self):
@@ -117,13 +116,14 @@ class mesolve_super_impmdpt(implicitmdpt):
 
         # Handle time-independent Hamiltonian
         if self.H.__class__ == np.ndarray:
+            print('Time independent Hamiltonian ...')
             rho_out = self.solver()
             return rho_out
         
         # Handle the case involving drive terms
         elif self.H.__class__ == list:
 
-            # Extract the time-indepent and time-dependent Hamiltonians
+            # Extract the time-independent and time-dependent Hamiltonians
             H0 = self.H[0]
             Hp = self.H[1]
 
@@ -156,10 +156,10 @@ class mesolve_super_rk4(rk4):
     """
     Lindblad master equation solver using the superoperator formulation
     
-    d / dt || p >>  = -L || p >>
+    d / dt || p >>  = L || p >>
 
-    L = i/hbar (I x H^T - H x I) 
-        - sum_j g_j ( c_j* x c_j - 1/2 (I x (c_j^t c_j) + (c_j^t c_j)^T x I) )
+    L = -i/hbar (H x I - I x H^T) 
+        sum_j g_j ( c_j x c_j* - 1/2 (I x (c_j^t c_j) + (c_j^t c_j)^T x I) )
 
     """
 
@@ -261,13 +261,14 @@ class mesolve_super_rk4(rk4):
 
         # Handle time-independent Hamiltonian
         if self.H.__class__ == np.ndarray:
+            print('Time independent Hamiltonian ...')
             rho_out = self.solver()
             return rho_out
         
         # Handle the case involving drive terms
         elif self.H.__class__ == list:
 
-            # Extract the time-indepent and time-dependent Hamiltonians
+            # Extract the time-independent and time-dependent Hamiltonians
             H0 = self.H[0]
             Hp = self.H[1]
 

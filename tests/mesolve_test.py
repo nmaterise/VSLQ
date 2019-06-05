@@ -156,12 +156,12 @@ def test_qho_mesolve_fock_decay(N):
 
     # Choose physical parameters
     w = 2*np.pi*1
-    Nc = 16
+    Nc = 2
     T = 10 * 2*np.pi / w
     gamma = 2*np.pi / T
 
     # Set the times and time step
-    tpts = np.linspace(0, T, 5001)
+    tpts = np.linspace(0, T, 51)
     dt = tpts.max() / (tpts.size)
 
     # Set the initial density matrix and solve for the new rho
@@ -177,7 +177,7 @@ def test_qho_mesolve_fock_decay(N):
 
     # Plot the results
     ppt.plot_expect(tpts, navg, op_name='a^{\dagger}a',
-                    file_ext='qho_n_%d' % N) 
+                    file_ext='qho_n_%d' % N, ms='o') 
 
 
 def test_qho_mesolve_coherent_decay(alpha):
@@ -189,10 +189,10 @@ def test_qho_mesolve_coherent_decay(alpha):
     w = 2*np.pi*1
     Nc = 16
     T = 10 * 2*np.pi / w
-    gamma = 2*np.pi / T
+    gamma = 0 #2*np.pi / T
 
     # Set the times and time step
-    tpts = np.linspace(0, T, 5001)
+    tpts = np.linspace(0, T, 301)
     dt = tpts.max() / (tpts.size)
 
     # Set the initial density matrix and solve for the new rho
@@ -390,5 +390,6 @@ if __name__ == '__main__':
     # There is a similar example in the QuTip documentation that I used
     # to validate this test related to the Jaynes-Cummings model
     test_qho_mesolve_fock_decay(1)
+    # test_qho_mesolve_coherent_decay(1)
     # test_qho2_mesolve_fock_decay(1)
     # test_qho2_mesolve_driven(0)

@@ -84,6 +84,17 @@ def coherent(N, alpha):
     return alpha_ket
 
 
+def coherent_sup(N, alphas):
+    """
+    Returns an equally weighted coherent superposition
+    """
+
+    # Get the number of coherent states in the superposition state
+    M = len(alphas)
+
+    return sum([coherent(N, a) for a in alphas]) / np.sqrt(M)
+
+
 def tensor(*args):
     """
     Tensor product of variable number of operators

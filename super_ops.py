@@ -34,13 +34,10 @@ def dm2sket(rho):
     return rho_out.reshape([rho_out.shape[0], 1])
 
 
-def sket2dm(rho):
+def sket2dm(rho, N):
     """
     Converts a superket back to a density matrix
     """
-    
-    # Get the dimension of rho
-    N = int(np.ceil(np.sqrt(rho.ravel().size)))
 
     return rho.reshape([N, N])
 
@@ -98,6 +95,6 @@ def sexpect(op, rho):
     rho = np.asarray(rho) 
     
     # Convert rho to a density matrix
-    rhodm = np.array([sket2dm(r) for r in rho])
+    rhodm = np.array([sket2dm(r, N) for r in rho])
 
-    return np.array([np.trace(rd) for rd in rhodm])
+    return np.array([np.trace(op @ rd) for rd in rhodm])

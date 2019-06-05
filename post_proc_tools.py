@@ -90,7 +90,7 @@ def plot_wigner(xvec, W,
 
 def plot_expect(tpts, op_avg, op_name='',
                 tscale='ns', file_ext=None,
-                plot_phase=False):
+                plot_phase=False, ms=None):
     """
     Plot the expectation value of an operator as a function of time
     """
@@ -98,7 +98,7 @@ def plot_expect(tpts, op_avg, op_name='',
     fig, ax = plt.subplots(1, 1, figsize=(10, 6), tight_layout=True)
     fsize = 24; tsize = 26;
     set_axes_fonts(ax, fsize)
-    ax.plot(tpts, np.abs(op_avg))
+    ax.plot(tpts, np.abs(op_avg), marker=ms)
     
     # Set the axes labels
     xstr = 'Time (%s)' % tscale

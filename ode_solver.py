@@ -99,6 +99,8 @@ class implicitmdpt(object):
 
                 # y_n = (1 - hA)^-1 * y_n-1
                 y[n] = oneminAinv @ y[n-1]
+                # y_n = ((1 + h/2A)(1 - h/2A)^-1)^n * y_0
+                # y[n] = np.linalg.matrix_power(oneminAinv, n) @ y0
         
         # Otherwise update on each time step
         else:
@@ -379,7 +381,7 @@ class mesolve_rk4(rk4):
         # Handle the case involving drive terms
         elif self.H.__class__ == list:
 
-            # Extract the time-indepent and time-dependent Hamiltonians
+            # Extract the time-independent and time-dependent Hamiltonians
             H0 = self.H[0]
             Hp = self.H[1]
 
