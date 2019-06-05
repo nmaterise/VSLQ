@@ -65,12 +65,8 @@ class implicitmdpt(object):
 
         # Get the current value of A
         A = self.rhs_A(t + 0.5*h)
-        print('Is A positive semidefinite: %r' 
-                % np.all(np.linalg.eigvals(A)>=0))
         I = np.eye(A.shape[0])
         D = (I + 0.5*h*A) @ np.linalg.inv(I - 0.5*h*A)
-        print('Is D positive semidefinite: %r' \
-                % np.all(np.linalg.eigvals(D)>=0))
 
         return D
 
@@ -408,9 +404,6 @@ class mesolve_rk4(rk4):
         else:
             raise('H.__class__ ({}) not supported'.format(H.__class__))
         
-        
-        return self.solver()
-
 
 class langevin_rk4(rk4):
     """

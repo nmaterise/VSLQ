@@ -27,10 +27,22 @@ def dm2sket(rho):
         rho_out = np.array(rho)
 
     # Get the diagonal and off diagonal elements
-    rho_out = rho_out.flatten(order='A') # np.hstack((np.diag(rho_out), 
+    rho_out = rho_out.flatten()
+                # np.hstack((np.diag(rho_out), 
                 # rho_out[np.where(~np.eye(rho_out.shape[0], dtype=bool))]))
 
     return rho_out.reshape([rho_out.shape[0], 1])
+
+
+def sket2dm(rho):
+    """
+    Converts a superket back to a density matrix
+    """
+    
+    # Get the dimension of rho
+    N = int(np.ceil(np.sqrt(rho.ravel().size)))
+
+    return rho.reshape([N, N])
 
 
 def op2sop(op, action='l'):
@@ -40,17 +52,18 @@ def op2sop(op, action='l'):
 
     # Get the dimension of the operator
     N = op.shape[0]
+    I = np.eye(N)
 
     # Compute the tensor product on the left / right depending
     # on its action on the density matrix
 
     ## Action on the left, A * p
     if action == 'l':
-        return mops.tensor(op, np.eye(N)) 
+        return mops.tensor(op, I) 
     
     ## Action on the right, p * A
     elif action == 'r':
-        return mops.tensor(np.eye(N), op.T)
+        return mops.tensor(I, op.T)
 
     else:
         raise TypeError('action (%s) not supported.' % action)
@@ -81,14 +94,10 @@ def sexpect(op, rho):
     # Get the dimension of the Hilbert space
     N = int(np.floor(np.sqrt(rho[0].shape[0])))
 
-    # Check if the operator is super
-    if not issuper(op, N):
-        op = op2sop(op, 'l') 
-
-    # Compute the zero superket
-    zket = np.hstack((np.ones(N), np.zeros(N*(N - 1)))).reshape([1, N*N])
-
     # Check for dimensions of rho
     rho = np.asarray(rho) 
+    
+    # Convert rho to a density matrix
+    rhodm = np.array([sket2dm(r) for r in rho])
 
-    return np.array([zket @ op @ rho[i] for i in range(rho.shape[0])]).ravel()
+    return np.array([np.trace(rd) for rd in rhodm])

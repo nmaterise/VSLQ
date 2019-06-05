@@ -167,7 +167,10 @@ class base_cqed_sops(object):
         e.g. T2 > T1 
         """
         # Use 1/T1 for the transmon and the line width of the cavity
-        self.cops = [np.sqrt(g)*cop for g, cop in zip(gammas, cops)]
+        if not np.any(cops):
+            self.cops = [np.zeros(cop.shape) for cop in cops]
+        else:
+            self.cops = [np.sqrt(g)*cop for g, cop in zip(gammas, cops)]
 
 
     def run_dynamics(self, tpts, *args, **kwargs):
@@ -181,12 +184,26 @@ class base_cqed_sops(object):
         # Get the time step
         if kwargs is not None:
             dt = kwargs['dt']
+            solver = kwargs['solver']
         else:
             dt = self.tpts.max() / (10 * self.tpts.size)
-        me_impmdpt = sodes.mesolve_super_impmdpt(self.psi0, tpts, dt,
+    
+        # Set whether to use implicit midpoint, RK4 or another solver
+        ## Implicit midpoint
+        if solver == 'implicitmdpt':
+            me = sodes.mesolve_super_impmdpt(self.psi0, tpts, dt,
                 self.H, self.cops) 
+        
+        ## Runge-Kutta 4
+        elif solver == 'rk4':
+            me = sodes.mesolve_super_rk4(self.psi0, tpts, dt,
+                self.H, self.cops) 
+
+        else:
+            raise TypeError('Solver (%s) not supported.' % solver)
+
     
         # Return the density matrix
-        psif = me_impmdpt.mesolve()
+        psif = me.mesolve()
         
         return psif

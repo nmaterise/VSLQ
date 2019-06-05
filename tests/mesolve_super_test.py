@@ -67,8 +67,6 @@ class qho_super(base_cqed_sops):
         # H = w(a^t a + 1/2)
         self.H = self.w * (mops.dag(self.a)@self.a + self.Ic/2)
 
-        print('Is H Hermitian? %r' % np.allclose(self.H, self.H.T.conj()))
-
 
 def test_qho_mesolve_fock_decay_super(N):
     """
@@ -79,7 +77,7 @@ def test_qho_mesolve_fock_decay_super(N):
     w = 2*np.pi*1
     Nc = 16
     T = 10 * 2*np.pi / w
-    gamma = 1. / T
+    gamma = 2*np.pi / T
 
     # Set the times and time step
     tpts = np.linspace(0, T, 501)
@@ -88,16 +86,16 @@ def test_qho_mesolve_fock_decay_super(N):
     print('dt: %g' % dt)
 
     # Set the initial density matrix and solve for the new rho
-    rho0 = mops.ket2dm(mops.coherent(Nc, 1))
+    rho0 = mops.ket2dm(mops.basis(Nc, N))
     
     # Initialize the class object and run_dynamics()
     my_qho = qho_super(Nc, w, gamma)
     my_qho.set_init_state(rho0)
-    rho = my_qho.run_dynamics(tpts, [], dt=dt)
+    rho = my_qho.run_dynamics(tpts, [], dt=dt, solver='implicitmdpt')
     
     # Get the average population
-    navg = sops.sexpect(mops.dag(my_qho.a)@my_qho.a, rho)
-    # navg = sops.sexpect(np.eye(Nc), rho)
+    # navg = sops.sexpect(mops.dag(my_qho.a)@my_qho.a, rho)
+    navg = sops.sexpect(np.eye(Nc), rho)
     # unit_tr = np.ones(navg.size)
 
     # print('sqrt(sum((Tr[p] - 1)^2)): %g' % \
@@ -117,12 +115,12 @@ def test_qho_mesolve_fock_decay_super(N):
     ppt.plot_expect(tpts, navg.real, op_name='a^{\dagger}a',
                    file_ext='qho_super_n_%d' % N) 
 
-    plt.figure(2)
-    q = sops.sexpect(np.sqrt(0.5/w)*(my_qho.a + mops.dag(my_qho.a)), rho)
-    p = sops.sexpect(-1j*np.sqrt(0.5*w)*(my_qho.a - mops.dag(my_qho.a)), rho)
-    plt.plot(np.abs(q), np.abs(p))
-    plt.xlabel(r'$\Re q$'); plt.ylabel(r'$\Re p $')
-    plt.savefig('figs/phase_space_coherent_sket.pdf', format='pdf')
+    # plt.figure(2)
+    # q = sops.sexpect(np.sqrt(0.5/w)*(my_qho.a + mops.dag(my_qho.a)), rho)
+    # p = sops.sexpect(-1j*np.sqrt(0.5*w)*(my_qho.a - mops.dag(my_qho.a)), rho)
+    # plt.plot(np.abs(q), np.abs(p))
+    # plt.xlabel(r'$\Re q$'); plt.ylabel(r'$\Re p $')
+    # plt.savefig('figs/phase_space_coherent_sket.pdf', format='pdf')
 
 
 if __name__ == '__main__':

@@ -638,7 +638,7 @@ def test_mp_vslq():
     # Set the time array
     ## Time step 1/10 of largest energy scale
     Tdhalf = 4*np.pi / delta
-    dt0 = Tdhalf / 10
+    dt0 = Tdhalf / 20
 
     ## Decay time of transmons
     tmax = (0.05 / gammap)
@@ -655,6 +655,7 @@ def test_mp_vslq():
 
     # Call the multiprocess wrapper
     init_states = ['l1L1', 'L0', 'L1']
+    init_states = ['L0', 'L1']
     parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
                          Om, gammap, gammas,
                          gl, gr,
@@ -677,7 +678,7 @@ def test_proj():
     
     ## Time step 1/10 of largest energy scale
     Tdhalf = 4*np.pi / delta
-    dt0 = Tdhalf / 10
+    dt0 = Tdhalf / 20
 
     ## Number of points as N = tmax / dt + 1
     Ntpts = int(np.ceil(tmax / dt0)) + 1
