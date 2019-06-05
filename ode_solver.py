@@ -20,7 +20,7 @@ class implicitmdpt(object):
     """
     Implicit midpoint integration scheme of the vector equation
     
-    dy / dt = -A y
+    dy / dt = A y
     
     y_n+1 = (I + h/2 A)^-1 (I - h/2 A) y_n
 
@@ -64,12 +64,13 @@ class implicitmdpt(object):
         """
 
         # Get the current value of A
-        An = self.rhs_A(t) 
-        Anp1 = self.rhs_A(t+h)
-        I = np.eye(An.shape[0])
-        D = np.linalg.inv(I + 0.5*h*Anp1) @ (I - 0.5*h*An)
-
-        # Return (I + h/2 A_n+1)^-1 (I - h/2 A_n)
+        A = self.rhs_A(t + 0.5*h)
+        print('Is A positive semidefinite: %r' 
+                % np.all(np.linalg.eigvals(A)>=0))
+        I = np.eye(A.shape[0])
+        D = (I + 0.5*h*A) @ np.linalg.inv(I - 0.5*h*A)
+        print('Is D positive semidefinite: %r' \
+                % np.all(np.linalg.eigvals(D)>=0))
 
         return D
 
@@ -90,12 +91,14 @@ class implicitmdpt(object):
 
         # Check if A in constant in time
         if self.is_A_const:
+
+            print('Using constant right hand side ...')
             
             # Compute the rhs matrix once
             # Time-independent, just pass first time
             oneminAinv = self.inv1pA1mA(tpts[0], h)
 
-            # Iterate over all times
+            # Iterate over all remaining times
             for n in range(1, tpts.size):
 
                 # y_n = (1 - hA)^-1 * y_n-1
@@ -108,7 +111,7 @@ class implicitmdpt(object):
             for n in range(1, tpts.size):
 
                 # y_n = (1 - hA)^-1 * y_n-1
-                y[n] = self.inv1pA1mA(tpts[n-1], h, kwargs) @ y[n-1]
+                y[n] = self.inv1pA1mA(tpts[n-1], h) @ y[n-1]
 
         # Return the result as a numpy array
         

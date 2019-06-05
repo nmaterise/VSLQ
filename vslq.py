@@ -295,7 +295,7 @@ class vslq_mops_readout(base_cqed_mops):
             Pr = mops.ket2dm(kr)
 
             Pk = self.Xl @ (I + self.Xl @ self.Xr) @ (I - Pl) @ (I - Pr) / 2
-            Pk = self.Xl @ self.Xr
+    
 
         # cover the error state case
         else:
@@ -335,6 +335,9 @@ class vslq_mops_readout(base_cqed_mops):
                             self.ss0, self.c0)
 
             Pk = mops.ket2dm(kjl)
+
+        # Return the projection of the initial state onto to itself
+        Pk = self.psi0
 
         return Pk        
 
@@ -416,7 +419,7 @@ class vslq_mops_readout(base_cqed_mops):
         
         # Time independent Hamiltonian is sum of all contributions
         # Ignore the shadow / bath interaction for now
-        self.H = Hp + Hs + Hpc
+        self.H = Hp + Hs + Hps + Hpc
 
 
 def parfor_vslq_dynamics(Np, Ns, Nc, W, delta,
@@ -628,24 +631,24 @@ def test_mp_vslq():
 
     # Some example settings
     Np = 5; Ns = 2; Nc = 5;
-    W = 35*2*np.pi; delta = 350*2*np.pi; Om = 13.52;
-    gammap = 0; gammas = 0; #9.2;
+    W = 2*np.pi*70; delta = 2*np.pi*700; Om = 5.5;
+    # T1p = 20 us, T1s = 109 ns
+    gammap = 0.05; gammas = 9.2;
 
     # Set the time array
-    ## Characteristic time of the shadow resonators
-    TOm = 2*np.pi / Om
-    tmax = 3*TOm 
-    
     ## Time step 1/10 of largest energy scale
     Tdhalf = 4*np.pi / delta
     dt0 = Tdhalf / 10
+
+    ## Decay time of transmons
+    tmax = (0.05 / gammap)
 
     ## Number of points as N = tmax / dt + 1
     Ntpts = int(np.ceil(tmax / dt0)) + 1
     print('Using multiprocessing version ...')
     print('Running t=0 to %.2g us, %d points ...' % (tmax, Ntpts))
     tpts = np.linspace(0, tmax, Ntpts)
-    dt = tpts.max() / (10 * tpts.size)
+    dt = tpts.max() / tpts.size
 
     # Readout strengths
     gl = W / 50; gr = gl;
@@ -692,5 +695,5 @@ if __name__ == '__main__':
     # Test the dynamics of the vslq in different logical states
     # test_vslq_dynamics()
     # test_vslq_readout_dynamics()
-    # test_mp_vslq()
-    test_proj()
+    test_mp_vslq()
+    # test_proj()

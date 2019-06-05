@@ -170,22 +170,26 @@ def test_plot_all_expect(sname, fprefix, use_logical=True):
     # VSLQ Hilbert space 
     Np = 5; Ns = 2; Nc = 5;
 
-    # Use the time points from the original simulation
-    W = 35*2*np.pi; delta = 350*2*np.pi; Om = 13.52;
-    gammap = 0; gammas = 0; #9.2;
+    # Some example settings
+    Np = 5; Ns = 2; Nc = 5;
+    W = 2*np.pi*70; delta = 2*np.pi*700; Om = 5.5;
+    # T1p = 20 us, T1s = 109 ns
+    gammap = 0.05; gammas = 9.2;
 
     # Set the time array
-    ## Characteristic time of the shadow resonators
-    TOm = 2*np.pi / Om
-    tmax = 3*TOm
-    
     ## Time step 1/10 of largest energy scale
     Tdhalf = 4*np.pi / delta
     dt0 = Tdhalf / 10
 
+    ## Decay time of transmons
+    tmax = (0.05 / gammap)
+
     ## Number of points as N = tmax / dt + 1
     Ntpts = int(np.ceil(tmax / dt0)) + 1
+    print('Using multiprocessing version ...')
+    print('Running t=0 to %.2g us, %d points ...' % (tmax, Ntpts))
     tpts = np.linspace(0, tmax, Ntpts)
+    dt = tpts.max() / tpts.size
 
     ## Setup the plot
     fig, ax = plt.subplots(1, 1, figsize=(8, 6),
@@ -239,8 +243,8 @@ if __name__ == '__main__':
     snames = ['\widetilde{L}_0', '\widetilde{L}_1', 
               'L_0', 'L_1']
     # snames = ['L_0L_0', 'L_1L_1']
-    fprefix = ['data/rho_vslq_L0_1.4_us', 'data/rho_vslq_L1_1.4_us',
-               'data/rho_vslq_l1L0_1.4_us', 'data/rho_vslq_l1L1_1.4_us']#,
+    fprefix = ['data/rho_vslq_L0_1_us', 'data/rho_vslq_L1_1_us',
+               'data/rho_vslq_l1L1_1_us']#,
     # fprefix = ['data/rho_vslq_L1_1.4_us',
     #            'data/rho_vslq_l1L0_1.4_us', 'data/rho_vslq_l1L1_1.4_us']#,
     # fprefix = ['data/rho_vslq_L0_1.4_us']#,
@@ -249,7 +253,7 @@ if __name__ == '__main__':
     # fprefix = ['data/rho_vslq_l1L1_1.9_us']#,
                #'data/rho_vslq_L0_1.9_us',   'data/rho_vslq_L1_1.9_us']
     for ss, ff in zip(snames, fprefix):
-       # test_write_exp_drv(ff)
+       test_write_exp_drv(ff)
        test_plot_all_expect(ss, ff, True)
        test_plot_all_expect(ss, ff, False)
     

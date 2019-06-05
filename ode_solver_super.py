@@ -62,10 +62,16 @@ class mesolve_super_impmdpt(implicitmdpt):
         Computes the dissipative part of the Liouvillian
         """
 
-        self.Ld = -np.array([mops.tensor(c.conj(), c) \
-        - 0.5 * (mops.tensor(mops.dag(c).conj()@c.conj(), np.eye(c.shape[0])) \
-                       + mops.tensor(np.eye(c.shape[0]), (mops.dag(c)@c))) \
+        # Convert the collapse operators into superoperators acting on the
+        # superket, || rho >>
+        self.Ld = np.array([ \
+               mops.tensor(c, mops.dag(c).T) 
+                - 0.5 * (sops.op2sop(mops.dag(c)@c, 'l') \
+                    + sops.op2sop(mops.dag(c)@c, 'r')) \
                     for c in self.cops])
+
+        print('Is Ld positive semidefinite: %r' \
+                % np.all(np.linalg.eigvals(self.Ld)>=0))
 
 
     def get_Lu(self):
@@ -73,8 +79,7 @@ class mesolve_super_impmdpt(implicitmdpt):
         Computes the unitary part of the Liouvillian
         """
 
-        return 1j*(sops.op2sop(self.H, 'left') 
-                    - sops.op2sop(self.H, 'right'))
+        return -1j*(sops.op2sop(self.H, 'l') - sops.op2sop(self.H, 'r'))
 
 
     def rhs_A(self, t):
@@ -82,23 +87,31 @@ class mesolve_super_impmdpt(implicitmdpt):
         Computes the Liouvillian
         """
         
-        # Compute the constant time Liouvillian
-        if self.is_A_const:
-           return -(self.get_Lu() + self.Ld)
+        # Compute the constant time Liouvillian and no dissipation
+        if self.is_A_const and np.any(self.cops):
+            print('Using constant Liouvillian ...')
+            return self.get_Lu() + self.Ld
+        
+        # Constant H
+        elif self.is_A_const:
+            print('Using constant Liouvillian with no dissipation ...')
+            return self.get_Lu()
 
-        # Compute the time dependent Liouvillian
-        ## Extract time-independent and time-dependent components
-        H0 = self.H[0]; Hp = self.H[1]
+        # Time-dependent H
+        else:
 
-        ## Multiply and add Hp components
-        Hpp = sum([h*d(t) for h, d in Hp])
+            # Compute the time dependent Liouvillian
+            ## Extract time-independent and time-dependent components
+            H0 = self.H[0]; Hp = self.H[1]
 
-        ## Sum contributions and compute the unitary part of the Liouvillian
-        Htot = H0 + Hpp
-        Lu = 1j*(sops.op2sop(Htot, 'left') - sops.op2sop(Htot, 'right'))
+            ## Multiply and add Hp components
+            Hpp = sum([h*d(t) for h, d in Hp])
 
+            ## Sum contributions and compute the unitary part of the Liouvillian
+            Htot = H0 + Hpp
+            Lu = -1j*(sops.op2sop(Htot, 'l') - sops.op2sop(Htot, 'r'))
 
-        return -(Lu + self.Ld)
+            return Lu + self.Ld
 
 
     def mesolve(self):

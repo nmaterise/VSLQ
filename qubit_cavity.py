@@ -74,7 +74,10 @@ class base_cqed_mops(object):
         e.g. T2 > T1 
         """
         # Use 1/T1 for the transmon and the line width of the cavity
-        self.cops = [np.sqrt(g)*cop for g, cop in zip(gammas, cops)]
+        if not np.any(cops):
+            self.cops = [np.zeros(cop.shape) for cop in cops]
+        else:
+            self.cops = [np.sqrt(g)*cop for g, cop in zip(gammas, cops)]
 
 
     def run_dynamics(self, tpts, *args, **kwargs):

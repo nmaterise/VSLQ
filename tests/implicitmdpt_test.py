@@ -59,7 +59,7 @@ class sho_impmp(implicitmdpt):
         """
 
         # Compute the rhs matrix A
-        A = np.array([[0, -1/self.m], [self.m*self.w**2, 0]])
+        A = np.array([[0, 1/self.m], [-self.m*self.w**2, 0]])
 
         return A
 
@@ -85,7 +85,7 @@ class sho_damped_impmp(implicitmdpt):
         """
 
         # Compute the rhs matrix A
-        A = np.array([[2*self.gamma/self.m, -1/self.m], [self.m*self.w**2, 0]])
+        A = np.array([[-2*self.gamma/self.m, 1/self.m], [-self.m*self.w**2, 0]])
 
         return A
 
@@ -113,8 +113,8 @@ class sho_damped_driven_impmp(implicitmdpt):
         """
 
         # Compute the rhs matrix A
-        A = np.array([[2*self.gamma/self.m, -1/self.m], 
-                      [self.m*self.f(t, self.wd)*self.w**2, 0]])
+        A = np.array([[-2*self.gamma/self.m, 1/self.m], 
+                      [-self.m*self.f(t, self.wd)*self.w**2, 0]])
 
         return A
 
@@ -182,8 +182,8 @@ def test_sho_impmp():
     """
 
     # Set the frequency of oscillation
-    w = 1;
-    tpts = 2*np.pi*np.linspace(0, 10, 1001)
+    w = 1; m = 1;
+    tpts = 2*np.pi*np.linspace(0, 10, 101)
     dt = tpts.max() / (tpts.size)
 
     # Initialize the x and y as 1
@@ -191,7 +191,7 @@ def test_sho_impmp():
     print('yinit.shape: {}'.format(yinit.shape))
 
     # Run the code
-    my_sho_impmp = sho_impmp(yinit, tpts, dt, is_A_const=True, w=w, m=1)
+    my_sho_impmp = sho_impmp(yinit, tpts, dt, is_A_const=True, w=w, m=m)
     res = np.asarray(my_sho_impmp.solver())
 
 
@@ -220,6 +220,12 @@ def test_sho_impmp():
     plt.legend(loc='best')
     # plt.show()
     plt.savefig('figs/sho_impmp_demo.pdf', format='pdf')
+
+    plt.figure(2)
+    plt.plot(tpts, 0.5*m*w**2*q**2 + 0.5*p**2/m)
+    plt.xlabel('Time')
+    plt.ylabel('Energy')
+    plt.savefig('figs/sho_impmp_energy_cons_demo.pdf', format='pdf')
 
 
 def test_sho_damped_impmp():
@@ -282,7 +288,7 @@ def test_sho_damped_driven_impmp():
     """
 
     # Set the frequency of oscillation
-    w = 1; gamma = w / 100; wd = 2*w
+    w = 1; gamma = w / 100; wd = 2*w; m = 1;
     tpts = 2*np.pi*np.linspace(0, 20, 2001)
     dt = tpts.max() / (tpts.size)
 
@@ -298,7 +304,7 @@ def test_sho_damped_driven_impmp():
     # Run the code
     my_sho_damped_driven_impmp = sho_damped_driven_impmp(yinit, tpts, dt,
                          is_A_const=True,
-                         w=w, m=1, gamma=gamma, wd=wd, f=f)
+                         w=w, m=m, gamma=gamma, wd=wd, f=f)
     res = np.asarray(my_sho_damped_driven_impmp.solver())
     
 

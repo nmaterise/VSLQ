@@ -27,13 +27,13 @@ def dm2sket(rho):
         rho_out = np.array(rho)
 
     # Get the diagonal and off diagonal elements
-    rho_out = np.hstack((np.diag(rho_out), 
-                rho_out[np.where(~np.eye(rho_out.shape[0], dtype=bool))]))
+    rho_out = rho_out.flatten(order='A') # np.hstack((np.diag(rho_out), 
+                # rho_out[np.where(~np.eye(rho_out.shape[0], dtype=bool))]))
 
     return rho_out.reshape([rho_out.shape[0], 1])
 
 
-def op2sop(op, action='left'):
+def op2sop(op, action='l'):
     """
     Converts an operator acting on the left/right to a superoperator
     """
@@ -45,12 +45,12 @@ def op2sop(op, action='left'):
     # on its action on the density matrix
 
     ## Action on the left, A * p
-    if action == 'left':
-        return mops.tensor(np.eye(N), op)
+    if action == 'l':
+        return mops.tensor(op, np.eye(N)) 
     
     ## Action on the right, p * A
-    elif action == 'right':
-        return mops.tensor(op, np.eye(N)) 
+    elif action == 'r':
+        return mops.tensor(np.eye(N), op.T)
 
     else:
         raise TypeError('action (%s) not supported.' % action)
@@ -83,7 +83,7 @@ def sexpect(op, rho):
 
     # Check if the operator is super
     if not issuper(op, N):
-        op = op2sop(op, 'left') 
+        op = op2sop(op, 'l') 
 
     # Compute the zero superket
     zket = np.hstack((np.ones(N), np.zeros(N*(N - 1)))).reshape([1, N*N])
