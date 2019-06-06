@@ -12,12 +12,12 @@ if vslq_path not in sys.path:
 from qubit_cavity import base_cqed_sops
 import matrix_ops as mops
 import super_ops as sops
-from ode_solver_super import mesolve_super_impmdpt
 import post_proc_tools as ppt
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle as pk
 from scipy.interpolate import interp1d as interp
+from prof_tools import tstamp as ts
 
 
 class qho_super(base_cqed_sops):
@@ -158,7 +158,7 @@ def test_qho_mesolve_fock_decay_super(N):
 
     # Choose physical parameters
     w = 2*np.pi*1
-    Nc = 2
+    Nc = 40
     T = 10 * 2*np.pi / w
     gamma = 2*np.pi / T
 
@@ -174,9 +174,17 @@ def test_qho_mesolve_fock_decay_super(N):
     # Initialize the class object and run_dynamics()
     my_qho = qho_super(Nc, w, gamma)
     my_qho.set_init_state(rho0)
-    rho = my_qho.run_dynamics(tpts, [], dt=dt, solver='implicitmdpt')
 
-    # Get the average population
+    # Add profiling data
+    myts = ts()
+    use_sparse = 1
+    msg = {0 : 'Dense', 1 : 'Sparse'}
+    myts.set_timer(msg[use_sparse]) 
+    rho = my_qho.run_dynamics(tpts, [], dt=dt, 
+                              solver='implicitmdpt', use_sparse=use_sparse)
+    myts.get_timer() 
+
+    # # Get the average population
     navg = sops.sexpect(mops.dag(my_qho.a)@my_qho.a, rho)
 
     # Plot the results
@@ -205,15 +213,28 @@ def test_qho_mesolve_coherent_decay_super(alpha):
     # Initialize the class object and run_dynamics()
     my_qho = qho_super(Nc, w, gamma)
     my_qho.set_init_state(rho0)
-    rho = my_qho.run_dynamics(tpts, [], dt=dt, solver='implicitmdpt')
+    
+    # Add profiling data
+    myts = ts()
+    # myts.set_timer('Dense') 
+    # rho = my_qho.run_dynamics(tpts, [], dt=dt, 
+    #                           solver='implicitmdpt',
+    #                           use_sparse=False)
+    # myts.get_timer() 
+    use_sparse = 0 
+    msg = {0 : 'Dense', 1 : 'Sparse'}
+    myts.set_timer(msg[use_sparse]) 
+    rho = my_qho.run_dynamics(tpts, [], dt=dt, 
+                              solver='implicitmdpt', use_sparse=use_sparse)
+    myts.get_timer() 
 
-    # Get the average population
-    x = np.sqrt(1. / (2*w)) * (my_qho.a + mops.dag(my_qho.a))
-    xavg = sops.sexpect(x, rho)
+    # # Get the average population
+    # x = np.sqrt(1. / (2*w)) * (my_qho.a + mops.dag(my_qho.a))
+    # xavg = sops.sexpect(x, rho)
 
-    # Plot the results
-    ppt.plot_expect(tpts, xavg, op_name='x',
-            file_ext='qho_super_alpha_{}_x'.format(alpha)) 
+    # # Plot the results
+    # ppt.plot_expect(tpts, xavg, op_name='x',
+    #         file_ext='qho_super_alpha_{}_x'.format(alpha)) 
 
 
 def test_qho2_mesolve_fock_decay_super(N):
@@ -276,7 +297,8 @@ def test_qho2_mesolve_driven_super(N):
     rho0 = mops.ket2dm(mops.tensor(mops.basis(N1, 0), mops.basis(N2, N)))
     
     # Initialize the class object and run_dynamics()
-    my_qho = qho2_super(tpts, N1, N2, w1, w2, g, gamma1, gamma2, use_Ht=True)
+    my_qho = qho2_super(tpts, N1, N2, w1,
+                        w2, g, gamma1, gamma2, use_Ht=True)
     my_qho.set_init_state(rho0)
     print('Running driven dynamics for %g ns ...' % T)
     rho = my_qho.run_dynamics(tpts, [], dt=dt, solver='implicitmdpt')
@@ -298,7 +320,7 @@ def test_qho2_mesolve_driven_super(N):
 if __name__ == '__main__':
     
     # Run these tests by default
-    # test_qho_mesolve_fock_decay_super(1)
+    test_qho_mesolve_fock_decay_super(1)
     # test_qho_mesolve_coherent_decay_super(1)
     # test_qho2_mesolve_fock_decay_super(1)
-    test_qho2_mesolve_driven_super(0)
+    # test_qho2_mesolve_driven_super(0)

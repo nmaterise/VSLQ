@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib import cm
 from scipy.optimize import curve_fit
+import scipy.sparse as scsp
 # import qutip as qt
 import datetime
 import pickle as pk
@@ -541,3 +542,51 @@ def post_fit_exp(T1p):
     plt.xlabel(r'$T_{1P}\ (\mu\mathrm{s})$')
     plt.ylabel(r'$T_{1L}/T_{1P}$')
     plt.savefig('figs/t1L_t1p_fit.pdf', format='pdf')
+
+
+def plot_liouvillian_map(L, fext='', cmap=cm.inferno, use_sparse=False):
+    """
+    Generates a color map of the Liouvillian for a particular system
+    """
+
+    # Generate the figure
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8), tight_layout=True)
+
+    # Set the figure axes
+    fsize = 24
+
+    # Generate the color map
+    if use_sparse:
+        Ls = scsp.csc_matrix(L)
+        print('Number of non-zero elements in L: %d' % Ls.data.size)
+        ax.spy(Ls)
+        set_axes_fonts(ax, fsize)
+        fext = fext + '_sparse'
+    else:
+        ax.imshow(L, cmap=cmap)
+    fig.savefig('figs/liouvillian_cmap_%s.pdf' % fext, format='pdf')
+
+
+def plot_hamiltonian_map(H, fext='', cmap=cm.inferno, use_sparse=False):
+    """
+    Generates a color map of the Hamiltonian for a particular system
+    """
+
+    # Generate the figure
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+
+    # Set the figure axes
+    fsize = 24
+
+    # Generate the color map
+    if use_sparse:
+        ax.spy(scsp.csc_matrix(H))
+        fext = fext + '_sparse'
+        set_axes_fonts(ax, fsize)
+    else:
+        ax.imshow(H, cmap=cmap)
+    fig.savefig('figs/hamiltonian_cmap_%s.pdf' % fext, format='pdf')
+
+
+
+

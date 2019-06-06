@@ -187,6 +187,7 @@ class base_cqed_sops(object):
         if kwargs is not None:
             dt = kwargs['dt']
             solver = kwargs['solver']
+            use_sparse = kwargs['use_sparse']
         else:
             dt = self.tpts.max() / (10 * self.tpts.size)
     
@@ -194,12 +195,12 @@ class base_cqed_sops(object):
         ## Implicit midpoint
         if solver == 'implicitmdpt':
             me = sodes.mesolve_super_impmdpt(self.psi0, tpts, dt,
-                self.H, self.cops) 
+                self.H, self.cops, use_sparse=use_sparse) 
         
         ## Runge-Kutta 4
         elif solver == 'rk4':
             me = sodes.mesolve_super_rk4(self.psi0, tpts, dt,
-                self.H, self.cops) 
+                self.H, self.cops, use_sparse=use_sparse) 
 
         else:
             raise TypeError('Solver (%s) not supported.' % solver)

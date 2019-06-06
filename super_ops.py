@@ -98,3 +98,20 @@ def sexpect(op, rho):
     rhodm = np.array([sket2dm(r, N) for r in rho])
 
     return np.array([np.trace(op @ rd) for rd in rhodm])
+
+
+def liouvillian(H, cops):
+    """
+    Compute the Liouvillian given the Hamiltonian and collapse operators
+    """
+
+    # Compute the unitary part
+    Lu = -1j*(op2sop(H, 'l') - op2sop(H, 'r'))
+
+    # Compute the dissipative part
+    Ld = sum([mops.tensor(c, c.conj()) 
+            - 0.5 * (op2sop(mops.dag(c)@c, 'l') \
+                + op2sop(mops.dag(c)@c, 'r')) \
+            for c in cops])
+
+    return Lu + Ld

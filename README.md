@@ -30,6 +30,7 @@
         - Backward Euler, fixed time step
     * implictmdpt
         - Implicit midpoint, fixed time step
+        - Supports sparse operations with scipy.sparse
 
 ## Tests of solvers
 ### Explicit Runge-Kutta
@@ -55,6 +56,15 @@
           unitary and Lindblad loss examples
     * jaynes_cummings.py
         - Uses the base_cqed_mops class to validate QuTip examples
+
+### Lindblad Equation, superket
+    * mesolve_super_test.py
+        - Runs time-independent and time-dependent tests of the Lindblad master
+          equation in the superket / superoperator formalism
+        - Exercises both fourth order explicit Runge-Kutta and implicit midpoint
+          integrators
+        - Both implementations use a naive dense matrix representation for all
+          operators and state superkets
 
 ### VSLQ Dynamics
     * vslq_lossy_tests.py

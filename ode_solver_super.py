@@ -8,6 +8,7 @@ import matrix_ops as mops
 from ode_solver import implicitmdpt, rk4
 import numpy as np
 from scipy.interpolate import interp1d as interp
+import scipy.sparse as scsp
 
 
 class mesolve_super_impmdpt(implicitmdpt):
@@ -21,7 +22,7 @@ class mesolve_super_impmdpt(implicitmdpt):
 
     """
 
-    def __init__(self, rho0, tpts, dt, H, cops):
+    def __init__(self, rho0, tpts, dt, H, cops, use_sparse=False):
         """
         Class constructor of the same form as mesolve_rk4
 
@@ -35,6 +36,7 @@ class mesolve_super_impmdpt(implicitmdpt):
         H:          Hamiltonian in same format as qt.mesolve [H0, [Hc, eps(t)]]
         cops:       collapse operators including the coefficients as a list
                     of qt.Obj's scaled by the damping coefficients
+        use_sparse: Use csc matrices in computing the rhs
 
         """
 
@@ -52,7 +54,7 @@ class mesolve_super_impmdpt(implicitmdpt):
 
         # Call the implicitmdpt constructor
         implicitmdpt.__init__(self, rho0, tpts, dt, is_A_const=is_A_const, 
-                              H=H, cops=cops)
+                              H=H, cops=cops, use_sparse=use_sparse)
 
         # Compute the Liouvillian
         self.set_Ld()
@@ -85,28 +87,55 @@ class mesolve_super_impmdpt(implicitmdpt):
         Computes the Liouvillian
         """
         
-        # Compute the constant time Liouvillian and no dissipation
-        if self.is_A_const and np.any(self.cops):
-            return self.get_Lu() + self.Ld
-        
-        # Constant H
-        elif self.is_A_const:
-            return self.get_Lu()
+        # Compute the sparse representation here
+        if self.use_sparse:
 
-        # Time-dependent H
+            # Compute the constant time Liouvillian and no dissipation
+            if self.is_A_const and np.any(self.cops):
+                return scsp.csc_matrix(self.get_Lu() + self.Ld)
+            
+            # Constant H
+            elif self.is_A_const:
+                return scsp.csc_matrix(self.get_Lu())
+
+            # Time-dependent H
+            else:
+                # Compute the time dependent Liouvillian
+                ## Extract time-independent and time-dependent components
+                H0 = self.H[0]; Hp = self.H[1]
+
+                ## Multiply and add Hp components
+                Hpp = sum([h*d(t) for h, d in Hp])
+
+                ## Sum contributions and compute the unitary part of the Liouvillian
+                Htot = H0 + Hpp
+                Lu = -1j*(sops.op2sop(Htot, 'l') - sops.op2sop(Htot, 'r'))
+
+                return scsp.csc_matrix(Lu + self.Ld)
         else:
-            # Compute the time dependent Liouvillian
-            ## Extract time-independent and time-dependent components
-            H0 = self.H[0]; Hp = self.H[1]
 
-            ## Multiply and add Hp components
-            Hpp = sum([h*d(t) for h, d in Hp])
+            # Compute the constant time Liouvillian and no dissipation
+            if self.is_A_const and np.any(self.cops):
+                return self.get_Lu() + self.Ld
+            
+            # Constant H
+            elif self.is_A_const:
+                return self.get_Lu()
 
-            ## Sum contributions and compute the unitary part of the Liouvillian
-            Htot = H0 + Hpp
-            Lu = -1j*(sops.op2sop(Htot, 'l') - sops.op2sop(Htot, 'r'))
+            # Time-dependent H
+            else:
+                # Compute the time dependent Liouvillian
+                ## Extract time-independent and time-dependent components
+                H0 = self.H[0]; Hp = self.H[1]
 
-            return Lu + self.Ld
+                ## Multiply and add Hp components
+                Hpp = sum([h*d(t) for h, d in Hp])
+
+                ## Sum contributions and compute the unitary part of the Liouvillian
+                Htot = H0 + Hpp
+                Lu = -1j*(sops.op2sop(Htot, 'l') - sops.op2sop(Htot, 'r'))
+
+                return Lu + self.Ld
 
 
     def mesolve(self):
@@ -164,7 +193,7 @@ class mesolve_super_rk4(rk4):
 
     """
 
-    def __init__(self, rho0, tpts, dt, H, cops):
+    def __init__(self, rho0, tpts, dt, H, cops, use_sparse=False):
         """
         Class constructor of the same form as mesolve_rk4
 
@@ -178,6 +207,7 @@ class mesolve_super_rk4(rk4):
         H:          Hamiltonian in same format as qt.mesolve [H0, [Hc, eps(t)]]
         cops:       collapse operators including the coefficients as a list
                     of qt.Obj's scaled by the damping coefficients
+        use_sparse: Use sparse csc matrices to compute the rhs
 
         """
 
@@ -195,7 +225,7 @@ class mesolve_super_rk4(rk4):
 
         # Call the implicitmdpt constructor
         rk4.__init__(self, rho0, tpts, dt, is_A_const=is_A_const, 
-                              H=H, cops=cops)
+                              H=H, cops=cops, use_sparse=use_sparse)
 
         # Compute the Liouvillian
         self.set_Ld()

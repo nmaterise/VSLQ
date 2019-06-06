@@ -8,6 +8,8 @@ from scipy.interpolate import interp1d as interp
 import post_proc_tools as ppt
 import matplotlib.pyplot as plt
 import matrix_ops as mops
+import scipy.sparse as scsp
+import scipy.sparse.linalg
 
 # Use for catching errors
 import traceback
@@ -40,10 +42,15 @@ class implicitmdpt(object):
 
         """
 
+        # Setting use_sparse to False by default, can be overwritten by kwargs
+        self.use_sparse = False
+
         # Set the arguments and keyword arguments
         self.__dict__.update(locals())
         for k, v in kwargs.items():
             setattr(self, k, v)
+
+        print('use_sparse: %r' % self.use_sparse)
 
         # Store the class members for the initial y and time step
         self.y0 = y0; self.tpts = tpts; self.dt = dt;
@@ -58,12 +65,25 @@ class implicitmdpt(object):
         pass
 
 
-    def inv1pA1mA(self, t, h):
+    def inv1pA1mA_sparse(self, t, h):
         """
         Perform the step (I + h/2A)^-1(I - h/2A)
         """
 
-        # Get the current value of A
+        # Check that A has the correct format
+        A = self.rhs_A(t + 0.5*h)
+
+        # Get I and D
+        I = scsp.csc_matrix(np.eye(A.shape[0]))
+        D = (I + 0.5*h*A) @ scipy.sparse.linalg.inv(I - 0.5*h*A)
+        
+        return D
+
+    def inv1pA1mA(self, t, h):
+        """
+        Perform the step (I + h/2A)^-1(I - h/2A)
+        """
+        # Default to the dense representation
         A = self.rhs_A(t + 0.5*h)
         I = np.eye(A.shape[0])
         D = (I + 0.5*h*A) @ np.linalg.inv(I - 0.5*h*A)
@@ -92,15 +112,16 @@ class implicitmdpt(object):
             
             # Compute the rhs matrix once
             # Time-independent, just pass first time
-            oneminAinv = self.inv1pA1mA(tpts[0], h)
+            if self.use_sparse:
+                oneminAinv = self.inv1pA1mA_sparse(tpts[0], h)
+            else:
+                oneminAinv = self.inv1pA1mA(tpts[0], h)
 
             # Iterate over all remaining times
             for n in range(1, tpts.size):
 
                 # y_n = (1 - hA)^-1 * y_n-1
                 y[n] = oneminAinv @ y[n-1]
-                # y_n = ((1 + h/2A)(1 - h/2A)^-1)^n * y_0
-                # y[n] = np.linalg.matrix_power(oneminAinv, n) @ y0
         
         # Otherwise update on each time step
         else:
@@ -108,10 +129,9 @@ class implicitmdpt(object):
             # Iterate over all times
             for n in range(1, tpts.size):
 
-                # y_n = (1 - hA)^-1 * y_n-1
+                # y_n = (1 + h/2A) * (1 - h/2A)^-1 * y_n-1
                 y[n] = self.inv1pA1mA(tpts[n-1], h) @ y[n-1]
 
-        # Return the result as a numpy array
         
         return np.array(y)
 

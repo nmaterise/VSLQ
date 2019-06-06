@@ -13,6 +13,7 @@ if vslq_dir not in sys.path:
 from vslq import vslq_mops
 from scipy.optimize import curve_fit
 import matrix_ops as mops
+import super_ops as sops
 import prof_tools as pts
 import post_proc_tools as ppt
 import multiprocessing as mp
@@ -154,10 +155,56 @@ def plot_exp_data():
     # ppt.plot_gammap_sweep_exp(T1p)
     ppt.post_fit_exp(T1p)
 
+
+def plot_vslq_cmaps():
+    """
+    Generates a color map of the VSLQ Hamiltonian and Liouvillian  
+    """
+
+    # Parameters used for VLSQ optimal operation
+    Np = 3; Ns = 2;
+    W = 2*np.pi*70; delta = 2*np.pi*700; Om = 5.5;
+    # T1p = 20 us, T1s = 109 ns
+    gammap = 0.05; gammas = 9.2;
+
+    # Set the time array
+    ## Time step 1/10 of largest energy scale
+    Tdhalf = 4*np.pi / delta
+    dt0 = Tdhalf / 20
+
+    ## Decay time of transmons
+    tmax = (0.05 / gammap)
+
+    ## Number of points as N = tmax / dt + 1
+    Ntpts = int(np.ceil(tmax / dt0)) + 1
+    tpts = np.linspace(0, tmax, Ntpts)
+
+    # Instantiate the VSLQ object
+    print('Setting up VSLQ Hamiltonian ...')
+    my_vslq = vslq_mops(Ns, Np, tpts, W, delta, Om,
+                 gammap, gammas)
+    my_vslq.set_H([], [])
+
+    # Plot the Hamiltonian as a color map
+    print('Plotting Hamiltonian color map ...')
+    ppt.plot_hamiltonian_map(my_vslq.H, fext='vslq_sparse', use_sparse=True)
+    ppt.plot_hamiltonian_map(my_vslq.H, fext='vslq', use_sparse=False)
+
+    # Get the Liouvillian
+    print('Computing Liouvillian ...')
+    L = sops.liouvillian(my_vslq.H, my_vslq.cops)
+
+    # Plot the Liouvillian as a color map
+    print('Plotting Liouvillian color map ...')
+    ppt.plot_liouvillian_map(L, fext='vslq_sparse', use_sparse=True)
+    ppt.plot_liouvillian_map(np.abs(L), fext='vslq', use_sparse=False)
+
+
+
 if __name__ == '__main__':
     
     # test_vslq_dissipative()
     # test_parfor_get_gamma()
-    plot_exp_data()
-
+    # plot_exp_data()
+    plot_vslq_cmaps()
 
