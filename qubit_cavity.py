@@ -36,7 +36,7 @@ class base_cqed_mops(object):
         """
         pass
 
-    
+
     def set_ops(self):
         """
         Set the operators needed to construct the Hamiltonian and
@@ -91,10 +91,11 @@ class base_cqed_mops(object):
         # Get the time step
         if kwargs is not None:
             dt = kwargs['dt']
+            use_sparse = kwargs['use_sparse']
         else:
             dt = self.tpts.max() / (10 * self.tpts.size)
         me_rk4 = odes.mesolve_rk4(self.psi0, tpts, dt,
-                self.H, self.cops) 
+                self.H, self.cops, use_sparse=use_sparse) 
     
         # Return the density matrix
         psif = me_rk4.mesolve()

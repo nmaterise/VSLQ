@@ -6,6 +6,7 @@ involving N-particles
 """
 
 import numpy as np
+import scipy.sparse as scsp
 import math
 
 
@@ -145,6 +146,10 @@ def expect(op, rho):
 
     # Convert the density matrix to a numpy array if needed
     rho = np.asarray(rho)            
+
+    # Check if rho is sparse, convert back to dense
+    if rho[0].__class__ == scsp.csc.csc_matrix:
+        rho = np.array([r.todense() for r in rho])
 
     return np.array([np.trace(op @ rho[i]) for i in range(rho.shape[0])])
 
