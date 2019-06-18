@@ -202,6 +202,13 @@ def plot_expect_complex_ab(op_a, op_b,
             tight_layout=True)
     fsize = 24; tsize = 26; lw = 1.5; lsize=20
     set_axes_fonts(ax, fsize)
+
+    # Convert the input to numpy arrays
+    if op_a.__class__ != np.ndarray:
+        op_a = np.array(op_a)
+    if op_b.__class__ != np.ndarray:
+        op_b = np.array(op_b)
+
     ax.plot(op_a.real/scale, op_a.imag/scale,
             'ro-', linewidth=lw,
             label=r'$\left|{%s}\right>$' % snames[0])
@@ -212,9 +219,9 @@ def plot_expect_complex_ab(op_a, op_b,
     # Set the x/y limits
     amax = op_a.max(); bmax = op_b.max()
     ymax = np.abs(amax) if amax > 0 else np.abs(amax)
-    ylim = [-1.2, 1.2]
-    xlim = ylim 
-    ax.set_xlim(xlim); ax.set_ylim(ylim)
+    # ylim = [-1.2, 1.2]
+    # xlim = ylim 
+    # ax.set_xlim(xlim); ax.set_ylim(ylim)
 
     # Set the axes labels
     xstr = r'$\Re\langle{%s}\rangle$' % opname
@@ -586,7 +593,3 @@ def plot_hamiltonian_map(H, fext='', cmap=cm.inferno, use_sparse=False):
     else:
         ax.imshow(H, cmap=cmap)
     fig.savefig('figs/hamiltonian_cmap_%s.pdf' % fext, format='pdf')
-
-
-
-

@@ -9,12 +9,8 @@ Created: 180921
 
 import numpy as np
 import matrix_ops as mops
-from qubit_cavity import base_cqed_mops
-import matplotlib.pyplot as plt
-import pickle as pk
-import h5py as hdf
-import multiprocessing as mp
 import scipy.sparse as scsp
+from qubit_cavity import base_cqed_mops
 
 
 class vslq_mops(base_cqed_mops):
@@ -204,22 +200,23 @@ class vslq_mops_readout(base_cqed_mops):
         """
 
         # States for the qubit / shadow degrees of freedom
-        self.s0  = mops.basis(self.Np, 0);
-        self.s1  = mops.basis(self.Np, 1);
-        self.s2  = mops.basis(self.Np, 2);
-        self.ss0 = mops.basis(self.Ns, 0);
-        self.c0  = mops.basis(self.Nc, 0);
+        s0  = mops.basis(self.Np, 0);
+        s1  = mops.basis(self.Np, 1);
+        s2  = mops.basis(self.Np, 2);
+        ss0 = mops.basis(self.Ns, 0);
+        c0  = mops.basis(self.Nc, 0);
 
         # Compute the density matrices corresponding to the states
         ## These correspond to the projectors |n_k > < n_k|
-        self.s1dm  = mops.ket2dm(self.s1);
-        self.s2dm  = mops.ket2dm(self.s2);
-        self.ss0dm = mops.ket2dm(self.ss0);
-        self.c0dm  = mops.ket2dm(self.c0);
+        self.s0dm  = mops.ket2dm(s1);
+        self.s1dm  = mops.ket2dm(s1);
+        self.s2dm  = mops.ket2dm(s2);
+        self.ss0dm = mops.ket2dm(ss0);
+        self.c0dm  = mops.ket2dm(c0);
 
         # Define the logical states
-        self.L0 = mops.ket2dm((self.s2 + self.s0) / np.sqrt(2))
-        self.L1 = mops.ket2dm((self.s2 - self.s0) / np.sqrt(2))
+        self.L0 = mops.ket2dm((s2 + s0) / np.sqrt(2))
+        self.L1 = mops.ket2dm((s2 - s0) / np.sqrt(2))
 
 
     def set_init_state(self, logical_state='L0'):
@@ -230,41 +227,46 @@ class vslq_mops_readout(base_cqed_mops):
         # Initialize to a 0-logical state in the primary and shadow lattice
         if logical_state == 'L0':
             # Initial density matrix
-            # psi0 = |L0> x |L0> x |0s> x |0s> |0c>
+            # psi0 = |L0> x |L0> x |0s> x |0s> x |0c>
             self.psi0 = mops.tensor(self.L0, self.L0,
                                     self.ss0dm, self.ss0dm,
                                     self.c0dm)
         elif logical_state == 'L1':
-            # psi0 = |L1> x |L1> x |0s> x |0s> |0c>
+            # psi0 = |L1> x |L1> x |0s> x |0s> x |0c>
             self.psi0 = mops.tensor(self.L1, self.L1,
                                     self.ss0dm, self.ss0dm,
                                     self.c0dm)
         elif logical_state == 'l1L0':
-            # psi0 = |1> x |L0> x |0s> x |0s> |0c>
+            # psi0 = |1> x |L0> x |0s> x |0s> x |0c>
             self.psi0 = mops.tensor(self.s1dm, self.L0,
                                     self.ss0dm, self.ss0dm,
                                     self.c0dm)
         elif logical_state == 'l1L1':
-            # psi0 = |1> x |L1> x |0s> x |0s> |0c>
+            # psi0 = |1> x |L1> x |0s> x |0s> x |0c>
             self.psi0 = mops.tensor(self.s1dm, self.L1,
                                     self.ss0dm, self.ss0dm,
                                     self.c0dm)
         elif logical_state == 'r1L0':
-            # psi0 = |L0> x |1> x |0s> x |0s> |0c>
+            # psi0 = |L0> x |1> x |0s> x |0s> x |0c>
             self.psi0 = mops.tensor(self.L0, self.s1dm,
                                     self.ss0dm, self.ss0dm,
                                     self.c0dm)
         elif logical_state == 'r1L1':
-            # psi0 = |L1> x |1> x |0s> x |0s> |0c>
+            # psi0 = |L1> x |1> x |0s> x |0s> x |0c>
             self.psi0 = mops.tensor(self.L1, self.s1dm,
                                     self.ss0dm, self.ss0dm,
                                     self.c0dm)
         else:
             self.psi0 = psi0
+            self.state_name = ''
+            return 0;
 
         # Convert the density matrix to sparse
         if self.use_sparse:
             self.psi0 = scsp.csc_matrix(self.psi0)
+
+        # Set the state name
+        self.state_name = logical_state
 
 
     def is_ket(self, ket):
@@ -288,64 +290,21 @@ class vslq_mops_readout(base_cqed_mops):
         state |k> by subtracting off the other state (s)
         """
 
-        # Identity for full Hilbert space
-        I = mops.tensor(self.Ip, self.Ip, self.Is, self.Is, self.Ic)
-        I = np.ones(self.Xl.shape[-1])
-
         # Cover the logical and the error state cases
         if is_log_state:
 
-            # Get logical state projectors, Pl, Pr
-            L0 = (self.s2 + self.s0) / np.sqrt(2)
-            kl = mops.tensor(L0, self.s1, self.ss0, self.ss0, self.c0)
-            kr = mops.tensor(self.s1, L0, self.ss0, self.ss0, self.c0)
-            Pl = mops.ket2dm(kl)
-            Pr = mops.ket2dm(kr)
-
-            Pk = self.Xl @ (I + self.Xl @ self.Xr) @ (I - Pl) @ (I - Pr) / 2
-
+            # Return the projection of the initial state onto to itself
+            Pk = self.psi0
 
         # cover the error state case
         else:
 
-            # Compute base projector
-            Pk = mops.ket2dm(mops.tensor(ket,
-                            self.s0, self.ss0,
-                            self.ss0, self.c0))\
-                        if self.is_ket(ket) else \
-                            mops.tensor(ket,
-                            self.s0, self.ss0,
-                            self.ss0, self.c0)
-            Pk = Pk @ (I + Pk)
-
-            # Iterate over all Fock states
-            for j in range(0, self.Np):
-                if j != num_st_idx:
-                    # Compute the jth Fock state
-                    kjl = mops.tensor(mops.basis(self.Np, j),
-                            self.s0, self.ss0,
-                            self.ss0, self.c0)
-                    kjr = mops.tensor(self.s0,
-                            mops.basis(self.Np, j), self.ss0,
-                            self.ss0, self.c0)
-
-                    # Compute the new projectors
-                    Pkjl = mops.ket2dm(kjl)
-                    Pkjr = mops.ket2dm(kjr)
-
-                    # Multiply by the subtracted off projectors
-                    Pk = Pk @ (I - Pkjl) @ (I - Pkjr)
-
             # Normalize the resulting projector
-            Pk /= np.linalg.norm(Pk)
-            kjl = mops.tensor(mops.basis(self.Np, num_st_idx),
-                            self.s0, self.ss0,
-                            self.ss0, self.c0)
+            kjldm = mops.ket2dm(mops.basis(self.Np, num_st_idx))
+            Pk = mops.tensor(kjldm, self.s0dm,
+                             self.ss0dm, self.ss0dm,
+                             self.c0dm)
 
-            Pk = mops.ket2dm(kjl)
-
-        # Return the projection of the initial state onto to itself
-        Pk = self.psi0
 
         return Pk
 
@@ -396,8 +355,6 @@ class vslq_mops_readout(base_cqed_mops):
         self.ac = mops.tensor(self.Ip, self.Ip, self.Is, self.Is, ac0)
 
         ## Two photon operators on the logical manifold
-        # self.Xl = P02l
-        # self.Xr = P02r
         self.Xl = (self.apl@self.apl \
                   + mops.dag(self.apl)@mops.dag(self.apl)) / np.sqrt(2)
         self.Xr = (self.apr@self.apr \
@@ -433,305 +390,3 @@ class vslq_mops_readout(base_cqed_mops):
         # Time independent Hamiltonian is sum of all contributions
         # Ignore the shadow / bath interaction for now
         self.H = Hp + Hs + Hps + Hpc
-
-
-def parfor_vslq_dynamics(Np, Ns, Nc, W, delta,
-                         Om, gammap, gammas,
-                         gl, gr,
-                         init_state, tpts, dt, fid=None, use_sparse=False):
-    """
-    Parallel for loop kernel function for computing vslq dynamics
-
-    Parameters:
-    ----------
-
-    Np, Ns, Nc:         number of primary, shadow, readout cavity levels
-    W, delta, Om:       energy scales in the VSLQ
-    gl, gr:             coupling strengths between the readout cavity and the
-                        Xl, Xr primary qubit operators
-    gammap, gammas:     loss rates for the primary and shadow objects
-    tpts, dt:           times to evaluate the density matrix and rk4 timestep
-    fid:                file pointer to the HDF5 output file
-    use_sparse:         convert the Hamiltonian and all other operators
-                        to sparse matrices
-
-    Returns:
-    -------
-
-    """
-
-    # Set default args (deprecated external drive functionality)
-    args = [1, tpts.max()/2, tpts.max()/12]
-    tmax = tpts.max()
-
-    ## Run for | L1 > state
-    my_vslq = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
-                 gammap, gammas, gl, gr, use_sparse=use_sparse)
-    my_vslq.set_init_state(logical_state=init_state)
-    print('Running dynamics with |%s> ...' % init_state)
-    rho1 = my_vslq.run_dynamics(tpts, args, dt=dt, use_sparse=use_sparse)
-
-
-    ## Handles adding for hdf5 without breaking multiprocess
-    if fid != None:
-
-        ## Write the result to file
-        ## Replace pickle dump with hdf5 write
-        fid = hdf.File('data/rho_vslq_%.2g_us.bin' \
-                % (tmax))
-        ## Add a data set to the file
-        fid.create_dataset(data=rho1, name=init_state, dtype=rho1.dtype)
-        fid.close()
-
-    ## Defaults back to pickle
-    else:
-        with open('data/rho_vslq_%s_%.2g_us.bin' \
-                % (init_state, tmax), 'wb') as fid:
-            pk.dump(rho1, fid)
-        fid.close()
-
-    print('|%s> result written to file.' % init_state)
-
-
-def parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
-                         Om, gammap, gammas,
-                         gl, gr,
-                         init_states, tpts, dt):
-    """
-    Creates threads for the multiprocessing module to distribute the work
-    for different instances of the same job with different inputs
-
-    Parameters:
-    ----------
-
-    Np, Ns, Nc:         number of primary, shadow, readout cavity levels
-    W, delta, Om:       energy scales in the VSLQ
-    gl, gr:             coupling strengths between the readout cavity and the
-                        Xl, Xr primary qubit operators
-    gammap, gammas:     loss rates for the primary and shadow objects
-    tpts, dt:           times to evaluate the density matrix and rk4 timestep
-
-    Returns:
-    -------
-
-    """
-
-    # Create the multiprocessing pool
-    pool = mp.Pool(2)
-    nsize = len(init_states)
-    res = pool.starmap_async(parfor_vslq_dynamics,
-            zip( [Np]*nsize, [Ns]*nsize, [Nc]*nsize,[W]*nsize, [delta]*nsize,
-                         [Om]*nsize, [gammap]*nsize, [gammas]*nsize,
-                         [gl]*nsize, [gr]*nsize,
-                         init_states, [tpts]*nsize, [dt]*nsize))
-
-    # Close pool and join results
-    print('Releasing multiprocessing pool ...')
-    pool.close()
-    pool.join()
-
-
-def test_vslq_dynamics():
-    """
-    Tests the dynamics of the VSLQ with no drive and initial states
-    of logical 0 or 1
-    """
-
-    # Some example settings
-    Np = 4; Ns = 2; Nc = 2;
-    W = 70.0*np.pi; delta = 700.0*np.pi; Om = 5.5;
-    gammap = 0; gammas = 0; #9.2;
-
-    # Set the time array
-    tpts = np.linspace(0, 2*np.pi / W, 1001)
-    dt = tpts.max() / (10 * tpts.size)
-
-    # Create an instance of the vslq class
-    my_vslq = vslq_mops(Ns, Np, tpts, W, delta, Om, gammap, gammas)
-    my_vslq.set_init_state(logical_state='L1')
-    args = [1, tpts.max()/2, tpts.max()/12]
-    rho_out = my_vslq.run_dynamics(tpts, args, dt=dt)
-
-    # Get the expectation values for Xl and Xr
-    Xl = mops.expect(my_vslq.Xl, rho_out)
-    Xr = mops.expect(my_vslq.Xr, rho_out)
-
-    # Plot the results
-    plt.plot(tpts, Xl.real, label=r'$\Re\langle\widetilde{X}_l\rangle$')
-    plt.plot(tpts, Xl.imag, label=r'$\Im\langle\widetilde{X}_l\rangle$')
-    plt.plot(tpts, Xr.real, label=r'$\Re\langle\widetilde{X}_r\rangle$')
-    plt.plot(tpts, Xr.imag, label=r'$\Im\langle\widetilde{X}_r\rangle$')
-    plt.legend(loc='best')
-    plt.xlabel(r'Time [$\mu$s]')
-
-
-def test_vslq_readout_dynamics():
-    """
-    Tests the dynamics of the VSLQ with no drive and initial states
-    of logical 0 or 1
-    """
-
-    # Some example settings
-    Np = 5; Ns = 2; Nc = 5;
-    W = 35*2*np.pi; delta = 350*2*np.pi; Om = 13.52;
-    gammap = 0; gammas = 0; #9.2;
-
-    # Set the time array
-    ## Characteristic time of the shadow resonators
-    TOm = 2*np.pi / Om
-    tmax = 3*TOm
-
-    ## Time step 1/10 of largest energy scale
-    Tdhalf = 4*np.pi / delta
-    dt0 = Tdhalf / 10
-
-    ## Number of points as N = tmax / dt + 1
-    Ntpts = int(np.ceil(tmax / dt0)) + 1
-    print('Running t=0 to %.2g us, %d points ...' % (tmax, Ntpts))
-    tpts = np.linspace(0, tmax, Ntpts)
-    dt = tpts.max() / (10 * tpts.size)
-
-    # Readout strengths
-    gl = W / 50; gr = gl;
-
-    # Create an instance of the vslq class
-    args = [1, tpts.max()/2, tpts.max()/12]
-
-    ## Solve for | L0 > logical state
-    my_vslq_0 = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
-                 gammap, gammas, gl, gr)
-    lstate = 'l1L0'
-    my_vslq_0.set_init_state(logical_state=lstate)
-    rho0 = my_vslq_0.run_dynamics(tpts, args, dt=dt)
-
-    ## Write the result to file
-    with open('data/rho_vslq_%s_%.2g_us.bin' \
-            % (lstate, tmax), 'wb') as fid:
-        pk.dump(rho0, fid)
-    fid.close()
-    print('|1> |L0> result written to file.')
-
-    ## Run for | L1 > state
-    my_vslq_1 = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
-                 gammap, gammas, gl, gr)
-    lstate = 'l1L1'
-    my_vslq_1.set_init_state(logical_state=lstate)
-    rho1 = my_vslq_1.run_dynamics(tpts, args, dt=dt)
-
-    ## Write the result to file
-    with open('data/rho_vslq_%s_%.2g_us.bin' \
-            % (lstate, tmax), 'wb') as fid:
-        pk.dump(rho1, fid)
-    fid.close()
-    print('|1> |L1> result written to file.')
-
-    ## Solve for | L0 > logical state
-    my_vslq_0 = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
-                 gammap, gammas, gl, gr)
-    lstate = 'L0'
-    my_vslq_0.set_init_state(logical_state=lstate)
-    rho0 = my_vslq_0.run_dynamics(tpts, args, dt=dt)
-
-    ## Write the result to file
-    with open('data/rho_vslq_%s_%.2g_us.bin' \
-            % (lstate, tmax), 'wb') as fid:
-        pk.dump(rho0, fid)
-    fid.close()
-    print('|L0> result written to file.')
-
-    ## Run for | L1 > state
-    my_vslq_1 = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
-                 gammap, gammas, gl, gr)
-    lstate = 'L1'
-    my_vslq_1.set_init_state(logical_state=lstate)
-    rho1 = my_vslq_1.run_dynamics(tpts, args, dt=dt)
-
-    ## Write the result to file
-    with open('data/rho_vslq_%s_%.2g_us.bin' \
-            % (lstate, tmax), 'wb') as fid:
-        pk.dump(rho1, fid)
-    fid.close()
-    print('|L1> result written to file.')
-
-
-def test_mp_vslq():
-    """
-    Use both CPU's to divide and conquer the problem
-    """
-
-    # Some example settings
-    Np = 5; Ns = 2; Nc = 5;
-    W = 2*np.pi*70; delta = 2*np.pi*700; # Om = 5.5;
-    # # T1p = 20 us, T1s = 109 ns
-    # gammap = 0.05; gammas = 9.2;
-
-    # Readout strengths
-    gl = W / 50; gr = gl;
-
-    # Turn off dissipation
-    gammap = 0.; gammas = 0.;
-
-    # Turn off the coupling term
-    Om = 0.;
-
-    # Set the time array
-    ## Time step 1/10 of largest energy scale
-    Tdhalf = 4*np.pi / delta
-    dt0 = Tdhalf / 20
-
-    ## Decay time of transmons
-    # tmax = (0.05 / gammap)
-    tmax = max(1./gl, 1./gr)
-
-    ## Number of points as N = tmax / dt + 1
-    Ntpts = int(np.ceil(tmax / dt0)) + 1
-    print('Using multiprocessing version ...')
-    print('Running t=0 to %.2g us, %d points ...' % (tmax, Ntpts))
-    tpts = np.linspace(0, tmax, Ntpts)
-    dt = tpts.max() / tpts.size
-
-    # Call the multiprocess wrapper
-    init_states = ['l1L1', 'L0', 'L1']
-    # init_states = ['L0', 'L1']
-    parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
-                         Om, gammap, gammas,
-                         gl, gr,
-                         init_states, tpts, dt)
-
-def test_proj():
-    """
-    Initialize a vslq object to check if the new projectors are set correectly
-    """
-
-    # Some example settings
-    Np = 5; Ns = 2; Nc = 5;
-    W = 35*2*np.pi; delta = 350*2*np.pi; Om = 13.52;
-    gammap = 0; gammas = 0; #9.2;
-
-    # Set the time array
-    ## Characteristic time of the shadow resonators
-    TOm = 2*np.pi / Om
-    tmax = 3*TOm
-
-    ## Time step 1/10 of largest energy scale
-    Tdhalf = 4*np.pi / delta
-    dt0 = Tdhalf / 20
-
-    ## Number of points as N = tmax / dt + 1
-    Ntpts = int(np.ceil(tmax / dt0)) + 1
-    tpts = np.linspace(0, tmax, Ntpts)
-    dt = tpts.max() / (10 * tpts.size)
-
-    # Readout strengths
-    gl = W / 50; gr = gl;
-    my_vslq_1 = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
-                 gammap, gammas, gl, gr)
-
-
-if __name__ == '__main__':
-
-    # Test the dynamics of the vslq in different logical states
-    # test_vslq_dynamics()
-    # test_vslq_readout_dynamics()
-    test_mp_vslq()
-    # test_proj()

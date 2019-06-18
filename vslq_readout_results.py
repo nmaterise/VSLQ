@@ -12,7 +12,7 @@ from vslq import vslq_mops_readout
 import post_proc_tools as ppt
 import matrix_ops as mops
 import re as regex
-
+from prof_tools import tstamp
 
 def parfor_expect(opp, vslq_obj, rho, pre0, pre1):
     """
@@ -80,13 +80,13 @@ def write_expect(rho_fname, Ns, Np, Nc, ops=['']):
         fid.close() 
 
 
-def write_expect_driver(fname):
+def write_expect_driver(fname, args):
     """
     Run the above code with fixed inputs corresponding previous runs
     """
 
-    # VSLQ Hilbert space 
-    Np = 5; Ns = 2; Nc = 5;
+    # VSLQ Hilbert space
+    Np, Ns, Nc = args
 
     # Operators to average
     # ops = ['ac', 'P13', 'P04', 'P24', 'Xl', 'Xr']
@@ -97,102 +97,43 @@ def write_expect_driver(fname):
     write_expect(fname, Ns, Np, Nc, ops)
 
 
-def test_write_exp_drv(fname):
+def test_write_exp_drv(fname, Np, Ns, Nc):
     """
     Run code above on a single file, then all the files in parallel
     """
     
-    # Test above code with fname = 'data/rho_vslq_L0_1.3942us.bin' 
-    # fnames = ['data/rho_vslq_L0_1.3942us.bin','data/rho_vslq_L1_1.3942us.bin' ]
-    # fnames = ['data/rho_vslq_l1L0_1.9_us.bin','data/rho_vslq_l1L1_1.9_us.bin' ]
+    # Use the arguments from the input parameters
+    args = (Np, Ns, Nc)
+
     print('Computing expectation values for (%s) data ...' % fname)
-    write_expect_driver('%s.bin' % fname)
+    write_expect_driver('%s.bin' % fname, args)
 
 
-def plot_ac(tpts, fnames, snames, fext):
+def plot_ac(tpts, fnames, snames, fext, dfac=10):
     """
     Plot the cavity operator quadratures
     """
 
     # Get the data from the 0 and 1 states
-    with open(fnames[0], 'rb') as fid:
+    with open('%s_ac.bin' % fnames[0], 'rb') as fid:
         a0 = pk.load(fid)
-    with open(fnames[1], 'rb') as fid:
+    with open('%s_ac.bin' % fnames[1], 'rb') as fid:
         a1 = pk.load(fid)
     
+    print('Decimation factor and total number of points: %d, %d' %
+            ( dfac, int(tpts.size/dfac) ) )
+
     # Plot the results
-    ppt.plot_expect_complex_ab(a0[0::100], a1[0::100], 'a_c', snames, fext,
-            scale=0.5)
+    ppt.plot_expect_complex_ab(a0[0::dfac], a1[0::dfac], 
+            'a_c', snames, fext, scale=0.5)
 
 
-def test_plot_ac(ttt):
-    """
-    Plot the cavity field for different logical states
-    """
-    # VSLQ Hilbert space 
-    Np = 5; Ns = 2; Nc = 5;
-
-    # Use the time points from the original simulation
-    W = 35*2*np.pi; delta = 350*2*np.pi; Om = 13.52;
-    gammap = 0; gammas = 0; #9.2;
-
-    # Set the time array
-    ## Characteristic time of the shadow resonators
-    TOm = 2*np.pi / Om
-    tmax = 3*TOm
-    
-    ## Time step 1/10 of largest energy scale
-    Tdhalf = 4*np.pi / delta
-    dt0 = Tdhalf / 20
-
-    ## Number of points as N = tmax / dt + 1
-    Ntpts = int(np.ceil(tmax / dt0)) + 1
-    tpts = np.linspace(0, tmax, Ntpts)
-
-    # First plot the logical state, then the photon loss states
-    fnames = ['data/rho_vslq_L0_%d_us_ac.bin' % ttt,
-              'data/rho_vslq_L1_%d_us_ac.bin' % ttt ]
-    snames = ['L_0', 'L_1']
-    plot_ac(tpts, fnames, snames, 'L0L1')
-
-    # # First plot the logical state, then the photon loss states
-    # fnames = ['data/rho_vslq_l1L0_%d_us_ac.bin' % ttt,
-    #           'data/rho_vslq_l1L1_%df_us_ac.bin' % ttt]
-    # snames = ['\widetilde{L}_0', '\widetilde{L}_1']
-    # plot_ac(tpts, fnames, snames, 'l1L0l1L1')
-
-
-def test_plot_all_expect(sname, fprefix, use_logical=True):
+def test_plot_all_expect(sname, fprefix, tpts, Np, use_logical=True):
     """
     Plot the expectation values vs. time
     """
 
-    # VSLQ Hilbert space 
-    Np = 5; Ns = 2; Nc = 5;
-
-    # Some example settings
-    Np = 5; Ns = 2; Nc = 5;
-    W = 2*np.pi*70; delta = 2*np.pi*700; Om = 5.5;
-    # T1p = 20 us, T1s = 109 ns
-    gammap = 0.05; gammas = 9.2;
-
-    # Set the time array
-    ## Time step 1/10 of largest energy scale
-    Tdhalf = 4*np.pi / delta
-    dt0 = Tdhalf / 20
-
-    ## Decay time of transmons
-    tmax = (0.05 / gammap)
-    # Readout strengths
-    gl = W / 50; gr = gl;
-    tmax = max(1./gl, 1./gr)
-
-    ## Number of points as N = tmax / dt + 1
-    Ntpts = int(np.ceil(tmax / dt0)) + 1
-    print('Using multiprocessing version ...')
-    print('Running t=0 to %.2g us, %d points ...' % (tmax, Ntpts))
-    tpts = np.linspace(0, tmax, Ntpts)
-    dt = tpts.max() / tpts.size
+    print('|%s> from (%s.bin)' % (sname, fprefix))
 
     ## Setup the plot
     fig, ax = plt.subplots(1, 1, figsize=(8, 6),
@@ -240,24 +181,84 @@ def test_plot_all_expect(sname, fprefix, use_logical=True):
             format='png') 
 
 
+def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
+                             fnames, Ntout=25, plot_write='wp'):
+    """
+    Writes and plots the expectation values for all operators
+    
+    Parameters:
+    ----------
+
+    tpts:       time points for the results, should match input data 
+    Np,Ns,Nc:   number of primary, shadow, and readout levels
+    snames:     list of strings of the states to get the expectation values
+                of various projection operators; these names are used in
+                the plot legends and can contain latex
+    fnames:     filenames of the density matrices for each state in snames
+    Ntout:      number of times to decimate down to
+    plot_write: plot, write, or write and plot
+
+    """
+
+    # Start the timing clock
+    ts = tstamp()
+
+    # Compute a reasonable decimation factor to get ~20 points every time
+    Nt = tpts.size
+    Ntt = Nt if Nt <= Ntout else Ntout
+
+    # Decimation factor between 1 and Ntt // Ntout
+    dfac = Nt // Ntt
+
+    # Skip straigh to the plotds
+    if plot_write == 'p':
+        print('\nPlotting expectation values ...\n')
+        ts.set_timer('test_plot_all_expect')
+        for ss, ff in zip(snames, fnames):
+            test_plot_all_expect(ss, ff, tpts, Np, True)
+            test_plot_all_expect(ss, ff, tpts, Np, False)
+        ts.get_timer()
+        
+        # Plot the phase diagram for the readout cavity state
+        print('\nGenerating phase diagrams ...\n')
+        ts.set_timer('plot_ac')
+        plot_ac(tpts, fnames, snames, 'L1L0', dfac=dfac)
+        ts.get_timer()
+
+    # Compute, then plot
+    elif plot_write == 'wp':
+        # Get the expectation values files
+        print('\nWriting expectation values ...\n')
+        ts.set_timer('test_write_exp_drv')
+        for ss, ff in zip(snames, fnames):
+            test_write_exp_drv(ff, Np, Ns, Nc)
+        ts.get_timer()
+
+        # Plot the results
+        print('\nPlotting expectation values ...\n')
+        ts.set_timer('test_plot_all_expect')
+        for ss, ff in zip(snames, fnames):
+            test_plot_all_expect(ss, ff, tpts, Np, True)
+            test_plot_all_expect(ss, ff, tpts, Np, False)
+        ts.get_timer()
+
+    # Just compute
+    elif plot_write == 'w':
+        # Get the expectation values files
+        print('\nWriting expectation values ...\n')
+        ts.set_timer('test_write_exp_drv')
+        for ss, ff in zip(snames, fnames):
+            test_write_exp_drv(ff, Np, Ns, Nc)
+        ts.get_timer()
+        
+    else:
+        raise ValueError('(%s) is not a valid plot_write type' % plot_write)
+
+
 if __name__ == '__main__':
 
     # Iterate over all the files and pass in labels
-    # snames = ['\widetilde{L}_0', '\widetilde{L}_1',
-    #           'L_0', 'L_1']
-    snames = ['L_0', 'L_1']
     snames = ['L_0', 'L_1', '\widetilde{L1}']
-    # snames = ['L_0L_0', 'L_1L_1']
-    # fprefix = ['data/rho_vslq_L0_1_us', 'data/rho_vslq_L1_1_us',
-    #            'data/rho_vslq_l1L1_1_us']#,
-    fprefix = ['data/rho_vslq_L0_0.11_us', 'data/rho_vslq_L1_0.11_us',
-               'data/rho_vslq_l1L1_0.11_us']
-
-    for ss, ff in zip(snames, fprefix):
-        # test_write_exp_drv(ff)
-        test_plot_all_expect(ss, ff, True)
-        test_plot_all_expect(ss, ff, False)
-
-    # Run the above code on the following test case
-    test_plot_ac(1)
-
+    fnames = ['data/rho_vslq_L0_0.11_us', 'data/rho_vslq_L1_0.11_us',
+              'data/rho_vslq_l1L1_0.11_us']
+    print('__main__ does nothing here ...')

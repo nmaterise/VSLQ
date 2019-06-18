@@ -20,7 +20,8 @@ import multiprocessing as mp
 import pickle as pk
 
 
-def parfor_get_gamma(Np, Ns, W, delta, Om, gammap, gammas, plot=False):
+def parfor_get_gamma(Np, Ns, W, delta, Om, 
+                     gammap, gammas, use_sparse=False):
     """
     Parfor kernel function
     """
@@ -46,7 +47,9 @@ def parfor_get_gamma(Np, Ns, W, delta, Om, gammap, gammas, plot=False):
                  gammap, gammas)
     
     ## Run the dynamics, get the density matrix
-    rho = my_vslq.run_dynamics(tpts, args_list, dt=tpts.max()/tpts.size)
+    rho = my_vslq.run_dynamics(tpts, args_list,
+                               dt=tpts.max()/tpts.size,
+                               use_sparse=use_sparse)
 
     # Compute the expectation value and get T1L
     p0 = mops.expect(my_vslq.pL, rho)
@@ -68,18 +71,11 @@ def parfor_get_gamma(Np, Ns, W, delta, Om, gammap, gammas, plot=False):
     print('gammap: %g MHz, T1L: %g +/- %g us, T1L/T1p: %g'\
             % (Ntpts, gammap, T1L, dT1L, (T1L*gammap)))
 
-    if plot:
-        plt.plot(tpts, np.abs(p0), '*')
-        plt.plot(tpts, fit_fun(tpts, *popt), '--', 
-                label=r'%2f $e^{-t/%2f}$+%2f' \
-                % (popt[0], (1./popt[1]), popt[2]))
-        plt.legend(loc='best')
-        plt.show()
-
     return T1L
 
 
-def parfor_gamma_wrapper(Np, Ns, W, delta, Om, gammap, gammas):
+def parfor_gamma_wrapper(Np, Ns, W, delta, Om,
+                         gammap, gammas, use_sparse=False):
     """
     Wrapper on the parfor run with multiprocessing pool
     """
@@ -91,7 +87,7 @@ def parfor_gamma_wrapper(Np, Ns, W, delta, Om, gammap, gammas):
     nsize = gammap.size
     res = pool.starmap_async(parfor_get_gamma, 
             zip([Np]*nsize, [Ns]*nsize, [W]*nsize, [delta]*nsize,
-            [Om]*nsize, gammap, [gammas]*nsize))
+            [Om]*nsize, gammap, [gammas]*nsize, [use_sparse]*nsize))
 
     ## Close pool and join results
     pool.close()
@@ -106,6 +102,46 @@ def parfor_gamma_wrapper(Np, Ns, W, delta, Om, gammap, gammas):
 def test_parfor_get_gamma():
     """
     Test the get_gamma function before using parfor
+    """
+
+    # Initialize the profiling class object
+    ts = pts.tstamp()
+
+    # VSLQ Hilbert space 
+    Np = 3; Ns = 2;
+
+    # Use the time points from the original simulation
+    W = 2*np.pi*35; delta = 2*np.pi*350; Om = 5.5;
+    T1p_min = 5.; T1p_max = 80.;  gammas = 9.2;
+
+    # Set the gammap list
+    # gammap = 1./np.linspace(T1p_min, T1p_max, 16)
+    use_sparse = True
+    sdict = {0: 'Dense', 1 : 'Sparse'}
+    gammap = 1./np.array([5., 80.])
+
+    # Call the parfor wrapper function
+    print('Running gammap (%s): %g MHz to %g MHz ...'\
+            % (sdict[use_sparse], gammap.min(), gammap.max()))
+    ts.set_timer('parfor_gamma_wrapper')
+    T1L = parfor_gamma_wrapper(Np, Ns, W, delta,
+                               Om, gammap, gammas, use_sparse)
+    ts.get_timer()
+    
+    # Plot the results
+    T1p = 1. / gammap
+    
+    ## Plot T1p vs. 
+    plt.figure(1)
+    plt.plot(T1p, T1L/T1p)
+    plt.xlabel(r'$T_{1P} (\mu\mathrm{s})$')
+    plt.ylabel(r'$T_{1L}/T_{1P}$')
+    plt.savefig('figs/t1L_t1p.pdf', format='pdf')
+
+
+def test_parfor_get_gamma_sparse():
+    """
+    Test the get_gamma function before using parfor and sparse matrix operations
     """
 
     # Initialize the profiling class object
@@ -204,7 +240,7 @@ def plot_vslq_cmaps():
 if __name__ == '__main__':
     
     # test_vslq_dissipative()
-    # test_parfor_get_gamma()
+    test_parfor_get_gamma()
     # plot_exp_data()
-    plot_vslq_cmaps()
+    # plot_vslq_cmaps()
 
