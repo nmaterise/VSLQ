@@ -3,6 +3,10 @@
 Test the Runge Kutta solver with the harmonic oscillator
 """
 
+# Add the VSLQ path 
+from test_utils import set_path
+set_path()
+
 from ode_solver import rk4
 import numpy as np
 import matplotlib.pyplot as plt

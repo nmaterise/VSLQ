@@ -3,6 +3,7 @@
 
 # Omit the data files
 data/*
+data
 
 # Exclude text files 
 *.txt

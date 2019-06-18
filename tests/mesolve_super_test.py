@@ -5,10 +5,9 @@ Tests for the superoperator mesolve solver
 """
 
 # Add the VSLQ path 
-vslq_path = '/home/nmaterise/mines/research/VSLQ'
-import sys
-if vslq_path not in sys.path:
-    sys.path.append(vslq_path)
+from test_utils import set_path
+set_path()
+
 from qubit_cavity import base_cqed_sops
 import matrix_ops as mops
 import super_ops as sops

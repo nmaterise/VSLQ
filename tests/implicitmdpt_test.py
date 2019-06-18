@@ -5,10 +5,9 @@ Tests for the Implicit Midpoint Integrator
 """
 
 # Add the VSLQ path 
-vslq_path = '/home/nmaterise/mines/research/VSLQ'
-import sys
-if vslq_path not in sys.path:
-    sys.path.append(vslq_path)
+from test_utils import set_path
+set_path()
+
 from scipy.optimize import curve_fit
 from ode_solver import implicitmdpt
 import numpy as np

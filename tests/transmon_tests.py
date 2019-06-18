@@ -4,10 +4,10 @@ Tests of the transmon matrix_ops classes
 
 """
 
-import sys
-vslq_dir = '/home/nmaterise/mines/research/VSLQ'
-if vslq_dir not in sys.path:
-    sys.path.append(vslq_dir)
+# Add the VSLQ path 
+from test_utils import set_path
+set_path()
+
 import post_proc_tools as ppt
 import matplotlib.pyplot as plt
 import matrix_ops as mops

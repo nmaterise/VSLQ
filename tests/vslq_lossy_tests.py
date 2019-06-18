@@ -3,13 +3,13 @@
 Tests of the VSLQ with loss terms included
 
 """
+# Add the VSLQ path 
+from test_utils import set_path
+set_path()
 
 import numpy as np
 import matplotlib.pyplot as plt
-import sys
-vslq_dir = '/home/nmaterise/mines/research/VSLQ'
-if vslq_dir not in sys.path:
-    sys.path.append(vslq_dir)
+
 from vslq import vslq_mops
 from scipy.optimize import curve_fit
 import matrix_ops as mops

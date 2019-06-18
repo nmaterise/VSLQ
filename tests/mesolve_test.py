@@ -5,10 +5,10 @@ using a quantum harmonic oscillator with and without dissipation
 
 """
 
-vslq_path = '/home/nmaterise/mines/research/VSLQ'
-import sys
-if vslq_path not in sys.path:
-    sys.path.append(vslq_path)
+# Add the VSLQ path 
+from test_utils import set_path
+set_path()
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matrix_ops as mops
