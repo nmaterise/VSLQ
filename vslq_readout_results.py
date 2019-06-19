@@ -242,6 +242,12 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
             test_plot_all_expect(ss, ff, tpts, Np, False)
         ts.get_timer()
 
+        # Plot the phase diagram for the readout cavity state
+        print('\nGenerating phase diagrams ...\n')
+        ts.set_timer('plot_ac')
+        plot_ac(tpts, fnames, snames, 'L1L0', dfac=dfac)
+        ts.get_timer()
+
     # Just compute
     elif plot_write == 'w':
         # Get the expectation values files
