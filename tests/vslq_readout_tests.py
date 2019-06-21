@@ -103,9 +103,10 @@ def parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
 
     Np, Ns, Nc:         number of primary, shadow, readout cavity levels
     W, delta, Om:       energy scales in the VSLQ
+    gammap, gammas:     loss rates for the primary and shadow objects
     gl, gr:             coupling strengths between the readout cavity and the
                         Xl, Xr primary qubit operators
-    gammap, gammas:     loss rates for the primary and shadow objects
+    init_states:        if list then parallel, else serial
     tpts, dt:           times to evaluate the density matrix and rk4 timestep
     fext:               filename extension
 
@@ -114,22 +115,34 @@ def parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
 
     """
 
-    # Create the multiprocessing pool
-    pool = mp.Pool(2)
-    nsize = len(init_states)
-    res = pool.starmap_async(parfor_vslq_dynamics,
-            zip( [Np]*nsize, [Ns]*nsize, [Nc]*nsize,[W]*nsize, [delta]*nsize,
-                         [Om]*nsize, [gammap]*nsize, [gammas]*nsize,
-                         [gl]*nsize, [gr]*nsize,
-                         init_states, [tpts]*nsize, [dt]*nsize, [fext]*nsize))
+    # Check if the code should run as serial or parallel
+    ## Run the multiprocessing version
+    if init_states.__class__ == list:
 
-    # Close pool and join results
-    print('Releasing multiprocessing pool ...')
-    pool.close()
-    pool.join()
+        # Create the multiprocessing pool
+        pool = mp.Pool(2)
+        nsize = len(init_states)
+        res = pool.starmap_async(parfor_vslq_dynamics,
+                zip( [Np]*nsize, [Ns]*nsize, [Nc]*nsize,[W]*nsize,
+                     [delta]*nsize, [Om]*nsize, [gammap]*nsize, 
+                     [gammas]*nsize, [gl]*nsize, [gr]*nsize,
+                     init_states, [tpts]*nsize, [dt]*nsize, [fext]*nsize))
+
+        # Close pool and join results
+        print('Releasing multiprocessing pool ...')
+        pool.close()
+        pool.join()
+
+    ## Run the serial version
+    else:
+        res = parfor_vslq_dynamics(Np, Ns, Nc, W,
+                     delta, Om, gammap, 
+                     gammas, gl, gr,
+                     init_states, tpts, dt, fext)
+        
 
 
-def test_mp_vslq(plot_write='wp', Np=3, is_lossy=False):
+def test_mp_vslq(init_state=None, plot_write='wp', Np=3, is_lossy=False):
     """
     Use both CPU's to divide and conquer the problem
     """
@@ -169,8 +182,16 @@ def test_mp_vslq(plot_write='wp', Np=3, is_lossy=False):
     dt = tpts.max() / tpts.size
 
     ## Set the string and file extension names
-    snames = ['L_0', 'L_1', '\widetilde{L1}']
-    fnames = ['data/rho_vslq_%s_L0_%.2f_us'   % (fext, tmax),
+    sname_dict = {'L0' : 'L_0', 'L1' : 'L_1', 'l1L1' : '\widetilde{L1}'}
+    
+    ## Use the input state or set them manually here
+    snames = sname_dict[init_state] if init_state != None\
+             else ['L_0', 'L_1', '\widetilde{L1}']
+
+    ## Use the input state to run one file or manually enter here
+    fnames = ['data/rho_vslq_%s_%s_%.2f_us' % (fext, init_state, tmax)] \
+                if init_state != None else \
+             ['data/rho_vslq_%s_L0_%.2f_us'   % (fext, tmax),
               'data/rho_vslq_%s_L1_%.2f_us'   % (fext, tmax),
               'data/rho_vslq_%s_l1L1_%.2f_us' % (fext, tmax)]
 
@@ -185,8 +206,9 @@ def test_mp_vslq(plot_write='wp', Np=3, is_lossy=False):
 
     ## Compute and plot 
     elif plot_write == 'w' or plot_write == 'wp':
-        # Call the multiprocess wrapper
-        init_states = ['L0', 'L1', 'l1L1']
+        # Call the multiprocess wrapper or the serial version
+        init_states = init_state if init_state != None \
+                                 else ['L0', 'L1', 'l1L1']
         parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
                              Om, gammap, gammas,
                              gl, gr,
@@ -209,19 +231,22 @@ def test_mp_vslq_parser():
     p = ap.ArgumentParser(description='Pseudo parallel vslq readout dynamics')
     
     # Add arguments
+    p.add_argument('-s', '--init_state', dest='init_state', type=str,
+                   help='Initial state vector [l1L1, l1L0, L0, L1]')
     p.add_argument('-p', '--plot_write', dest='plot_write', type=str,
                    help='Plot the data after the data has been generated\n'\
                         '(w,p,wp) -- write, plot, write and plot')
     p.add_argument('-n', '--Np', dest='Np', type=int,
                    help='Number of levels in the primary and readout modes')
-    p.add_argument('-l', '--is_lossy', dest='is_lossy', type=bool,
+    p.add_argument('-l', '--is_lossy', dest='is_lossy', type=int,
                     help='Turn on / off the dissipation and Hsp term')
     
     # Get the arguments
     args = p.parse_args()
+    print('Commandline arguments before function call: {}'.format(args))
 
     # Call the function as desired
-    test_mp_vslq(args.plot_write, args.Np, args.is_lossy)
+    test_mp_vslq(args.init_state, args.plot_write, args.Np, args.is_lossy)
 
 
 if __name__ == '__main__':
