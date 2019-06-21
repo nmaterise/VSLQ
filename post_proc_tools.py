@@ -82,11 +82,9 @@ def plot_wigner(xvec, W,
     # Write the results to file
     if file_ext is not None:
         fig.savefig('figs/wigner_%s.pdf' % file_ext, format='pdf') 
-        fig.savefig('figs/wigner_%s.png' % file_ext, format='png') 
     else:
         tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
         fig.savefig('figs/wigner_%s.pdf' % tstamp, format='pdf') 
-        fig.savefig('figs/wigner_%s.png' % tstamp, format='png') 
         
 
 def plot_expect(tpts, op_avg, op_name='',
@@ -171,14 +169,10 @@ def plot_expect_phase_ab(tpts, op_a, op_b,
     if fext is not None:
         fig.savefig('figs/%s_expect_phase_%s.pdf' \
                 % (opname, fext), format='pdf') 
-        fig.savefig('figs/%s_expect_phase_%s.png' \
-                % (opname, fext), format='png') 
     else:
         tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
         fig.savefig('figs/%s_expect_phase_%s_%s.pdf' % (opname, fext, tstamp),
                 format='pdf') 
-        fig.savefig('figs/%s_expect_phase_%s_%s.png' % (opname, fext, tstamp),
-                format='png') 
 
 def plot_expect_complex_ab(op_a, op_b, 
                             opname, snames, 
@@ -218,10 +212,10 @@ def plot_expect_complex_ab(op_a, op_b,
 
     # Set the x/y limits
     amax = op_a.max(); bmax = op_b.max()
-    ymax = np.abs(amax) if amax > 0 else np.abs(amax)
-    # ylim = [-1.2, 1.2]
-    # xlim = ylim 
-    # ax.set_xlim(xlim); ax.set_ylim(ylim)
+    ymax = np.abs(amax)
+    ylim = [-ymax, ymax]
+    xlim = ylim 
+    ax.set_xlim(xlim); ax.set_ylim(ylim)
 
     # Set the axes labels
     xstr = r'$\Re\langle{%s}\rangle$' % opname
@@ -241,14 +235,14 @@ def plot_expect_complex_ab(op_a, op_b,
     
     # Save the figure to file
     if fext is not None:
+        print('Writing figure to figs/%s_expect_%s.pdf' % (opname, fext))
         fig.savefig('figs/%s_expect_%s.pdf' % (opname, fext), format='pdf') 
-        fig.savefig('figs/%s_expect_%s.png' % (opname, fext), format='png') 
     else:
         tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
+        print('Writing figure to figs/%s_expect_%s_%s.pdf' \
+                % (opname, fext, tstamp))
         fig.savefig('figs/%s_expect_%s_%s.pdf' % (opname, fext, tstamp),
                 format='pdf') 
-        fig.savefig('figs/%s_expect_%s_%s.png' % (opname, fext, tstamp),
-                format='png') 
     
 
 def plot_phase_traces(tpts, adata, nkappas, drvs, kappa, tscale='ns'):
@@ -291,7 +285,6 @@ def plot_phase_traces(tpts, adata, nkappas, drvs, kappa, tscale='ns'):
     # Save the result to file
     tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
     fig.savefig('figs/traces_phase_diagram_%s.pdf' % tstamp, format='pdf')
-    fig.savefig('figs/traces_phase_diagram_%s.png' % tstamp, format='png')
 
 
 def plot_phase_ss(adata, tpts, nkappas, kappa, g, fext='', use_tseries=False):
@@ -333,8 +326,6 @@ def plot_phase_ss(adata, tpts, nkappas, kappa, g, fext='', use_tseries=False):
     tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
     fig.savefig('figs/%s_ss_phase_diagram_%s.pdf' % (fext, tstamp),
             format='pdf')
-    fig.savefig('figs/%s_ss_phase_diagram_%s.png' % (fext, tstamp),
-            format='png')
 
 
 def plot_io_a(tpts, a0, ae, g, kappa, fext=''):
@@ -392,8 +383,6 @@ def plot_io_a(tpts, a0, ae, g, kappa, fext=''):
     tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
     fig.savefig('figs/%s_ssfull_phase_diagram_%s.pdf' % (fext, tstamp),
             format='pdf')
-    fig.savefig('figs/%s_ssfull_phase_diagram_%s.png' % (fext, tstamp),
-            format='png')
 
 
 def plot_io_a_full(tpts, a0_d, ae_d, a0_l, ae_l,
@@ -475,8 +464,6 @@ def plot_io_a_full(tpts, a0_d, ae_d, a0_l, ae_l,
     tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
     fig.savefig('figs/%s_ssfull_phase_diagram_%s.pdf' % (fext, tstamp),
             format='pdf')
-    fig.savefig('figs/%s_ssfull_phase_diagram_%s.png' % (fext, tstamp),
-            format='png')
 
 
 def plot_gammap_sweep_exp(gammap):

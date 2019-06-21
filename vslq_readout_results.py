@@ -128,7 +128,8 @@ def plot_ac(tpts, fnames, snames, fext, dfac=10):
             'a_c', snames, fext, scale=0.5)
 
 
-def test_plot_all_expect(sname, fprefix, tpts, Np, use_logical=True):
+def test_plot_all_expect(sname, fprefix, tpts, Np,
+                         use_logical=True, is_lossy=False):
     """
     Plot the expectation values vs. time
     """
@@ -145,10 +146,10 @@ def test_plot_all_expect(sname, fprefix, tpts, Np, use_logical=True):
     if use_logical:
         oplist = ['P%d' % i for i in range(0, Np)]
         oplist.append('PXlXr') 
-        fstr = 'full'
+        fstr = 'full_lossy' if is_lossy else 'full_lossless'
     else:
         oplist = ['P%d' % i for i in range(0, Np)]
-        fstr = 'zoom'
+        fstr = 'zoom_lossy' if is_lossy else 'zoom_lossless'
 
     # Iterate over all of the operators whose expectation
     # values we have calculated
@@ -175,28 +176,30 @@ def test_plot_all_expect(sname, fprefix, tpts, Np, use_logical=True):
     ax.legend(hdls, legs, loc='best', fontsize=fsize)
 
     # Save the figure to file
-    fig.savefig('figs/logical_expect_leakage_%s_%s.eps' % (sname, fstr),
-            format='eps') 
-    fig.savefig('figs/logical_expect_leakage_%s_%s.png' % (sname, fstr),
-            format='png') 
+    print('Writing figure to figs/logical_expect_leakage_%s_%s.pdf' \
+            % (sname, fstr) )
+    fig.savefig('figs/logical_expect_leakage_%s_%s.pdf' % (sname, fstr),
+            format='pdf') 
 
 
 def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
-                             fnames, Ntout=25, plot_write='wp'):
+                             fnames, Ntout=25, plot_write='wp',
+                             is_lossy=False):
     """
     Writes and plots the expectation values for all operators
     
     Parameters:
     ----------
 
-    tpts:       time points for the results, should match input data 
-    Np,Ns,Nc:   number of primary, shadow, and readout levels
-    snames:     list of strings of the states to get the expectation values
-                of various projection operators; these names are used in
-                the plot legends and can contain latex
-    fnames:     filenames of the density matrices for each state in snames
-    Ntout:      number of times to decimate down to
-    plot_write: plot, write, or write and plot
+    tpts:           time points for the results, should match input data 
+    Np,Ns,Nc:       number of primary, shadow, and readout levels
+    snames:         list of strings of the states to get the expectation values
+                    of various projection operators; these names are used in
+                    the plot legends and can contain latex
+    fnames:         filenames of the density matrices for each state in snames
+    Ntout:          number of times to decimate down to
+    plot_write:     plot, write, or write and plot
+    is_lossy:       use lossy terms in the VSLQ Hamiltonian or not 
 
     """
 
@@ -210,19 +213,22 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
     # Decimation factor between 1 and Ntt // Ntout
     dfac = Nt // Ntt
 
+    # Construction the lossy file extension string
+    fext_lossy = 'lossy' if is_lossy else 'lossless'
+
     # Skip straigh to the plotds
     if plot_write == 'p':
         print('\nPlotting expectation values ...\n')
         ts.set_timer('test_plot_all_expect')
         for ss, ff in zip(snames, fnames):
-            test_plot_all_expect(ss, ff, tpts, Np, True)
-            test_plot_all_expect(ss, ff, tpts, Np, False)
+            test_plot_all_expect(ss, ff, tpts, Np, True, is_lossy)
+            test_plot_all_expect(ss, ff, tpts, Np, False, is_lossy)
         ts.get_timer()
         
         # Plot the phase diagram for the readout cavity state
         print('\nGenerating phase diagrams ...\n')
         ts.set_timer('plot_ac')
-        plot_ac(tpts, fnames, snames, 'L1L0', dfac=dfac)
+        plot_ac(tpts, fnames, snames, 'L0L1_%s' % fext_lossy, dfac=dfac)
         ts.get_timer()
 
     # Compute, then plot
@@ -238,8 +244,8 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
         print('\nPlotting expectation values ...\n')
         ts.set_timer('test_plot_all_expect')
         for ss, ff in zip(snames, fnames):
-            test_plot_all_expect(ss, ff, tpts, Np, True)
-            test_plot_all_expect(ss, ff, tpts, Np, False)
+            test_plot_all_expect(ss, ff, tpts, Np, True, is_lossy)
+            test_plot_all_expect(ss, ff, tpts, Np, False, is_lossy)
         ts.get_timer()
 
         # Plot the phase diagram for the readout cavity state

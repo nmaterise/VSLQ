@@ -181,7 +181,7 @@ def test_mp_vslq(plot_write='wp', Np=3, is_lossy=False):
         print('\nPost processing dynamics ...\n')
         vslq_readout_dump_expect(tpts, Np, Ns, Nc,
                                  snames, fnames, Ntout=25,
-                                 plot_write=plot_write)
+                                 plot_write=plot_write, is_lossy=is_lossy)
 
     ## Compute and plot 
     elif plot_write == 'w' or plot_write == 'wp':
@@ -196,7 +196,8 @@ def test_mp_vslq(plot_write='wp', Np=3, is_lossy=False):
         print('\nPost processing dynamics ...\n')
         vslq_readout_dump_expect(tpts, Np, Ns, Nc,
                                  snames, fnames, 
-                                 Ntout=25, plot_write=plot_write)
+                                 Ntout=25, plot_write=plot_write,
+                                 is_lossy=is_lossy)
 
 
 def test_mp_vslq_parser():
