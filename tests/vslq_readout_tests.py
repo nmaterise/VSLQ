@@ -189,7 +189,7 @@ def test_mp_vslq(init_state=None, plot_write='wp', Np=3, is_lossy=False):
              else ['L_0', 'L_1', '\widetilde{L1}']
 
     ## Use the input state to run one file or manually enter here
-    fnames = ['data/rho_vslq_%s_%s_%.2f_us' % (fext, init_state, tmax)] \
+    fnames = 'data/rho_vslq_%s_%s_%.2f_us' % (fext, init_state, tmax) \
                 if init_state != None else \
              ['data/rho_vslq_%s_L0_%.2f_us'   % (fext, tmax),
               'data/rho_vslq_%s_L1_%.2f_us'   % (fext, tmax),

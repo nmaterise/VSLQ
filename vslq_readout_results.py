@@ -220,47 +220,68 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
     if plot_write == 'p':
         print('\nPlotting expectation values ...\n')
         ts.set_timer('test_plot_all_expect')
-        for ss, ff in zip(snames, fnames):
-            test_plot_all_expect(ss, ff, tpts, Np, True, is_lossy)
-            test_plot_all_expect(ss, ff, tpts, Np, False, is_lossy)
+        if snames.__class__ == list:
+            for ss, ff in zip(snames, fnames):
+                test_plot_all_expect(ss, ff, tpts, Np, True, is_lossy)
+                test_plot_all_expect(ss, ff, tpts, Np, False, is_lossy)
+        else:
+            test_plot_all_expect(snames, fnames, tpts, Np, True, is_lossy)
+            test_plot_all_expect(snames, fnames, tpts, Np, False, is_lossy)
         ts.get_timer()
         
         # Plot the phase diagram for the readout cavity state
-        print('\nGenerating phase diagrams ...\n')
-        ts.set_timer('plot_ac')
-        plot_ac(tpts, fnames, snames, 'L0L1_%s' % fext_lossy, dfac=dfac)
-        ts.get_timer()
+        if snames.__class__ == list:
+            print('\nGenerating phase diagrams ...\n')
+            ts.set_timer('plot_ac')
+            plot_ac(tpts, fnames, snames, 'L0L1_%s' % fext_lossy, dfac=dfac)
+            ts.get_timer()
 
     # Compute, then plot
     elif plot_write == 'wp':
         # Get the expectation values files
-        print('\nWriting expectation values ...\n')
-        ts.set_timer('test_write_exp_drv')
-        for ss, ff in zip(snames, fnames):
-            test_write_exp_drv(ff, Np, Ns, Nc)
-        ts.get_timer()
+        if snames.__class__ == list:
+            print('\nWriting expectation values ...\n')
+            ts.set_timer('test_write_exp_drv')
+            for ss, ff in zip(snames, fnames):
+                test_write_exp_drv(ff, Np, Ns, Nc)
+            ts.get_timer()
 
-        # Plot the results
-        print('\nPlotting expectation values ...\n')
-        ts.set_timer('test_plot_all_expect')
-        for ss, ff in zip(snames, fnames):
-            test_plot_all_expect(ss, ff, tpts, Np, True, is_lossy)
-            test_plot_all_expect(ss, ff, tpts, Np, False, is_lossy)
-        ts.get_timer()
+            # Plot the results
+            print('\nPlotting expectation values ...\n')
+            ts.set_timer('test_plot_all_expect')
+            for ss, ff in zip(snames, fnames):
+                test_plot_all_expect(ss, ff, tpts, Np, True, is_lossy)
+                test_plot_all_expect(ss, ff, tpts, Np, False, is_lossy)
+            ts.get_timer()
+        else:
+            print('\nWriting expectation values ...\n')
+            ts.set_timer('test_write_exp_drv')
+            test_write_exp_drv(fnames, Np, Ns, Nc)
+            ts.get_timer()
+            print('\nPlotting expectation values ...\n')
+            ts.set_timer('test_plot_all_expect')
+            test_plot_all_expect(snames, fnames, tpts, Np, True, is_lossy)
+            test_plot_all_expect(snames, fnames, tpts, Np, False, is_lossy)
+            ts.get_timer()
 
         # Plot the phase diagram for the readout cavity state
-        print('\nGenerating phase diagrams ...\n')
-        ts.set_timer('plot_ac')
-        plot_ac(tpts, fnames, snames, 'L1L0', dfac=dfac)
-        ts.get_timer()
+        if snames.__class__ == list:
+            print('\nGenerating phase diagrams ...\n')
+            ts.set_timer('plot_ac')
+            plot_ac(tpts, fnames, snames, 'L1L0', dfac=dfac)
+            ts.get_timer()
 
     # Just compute
     elif plot_write == 'w':
         # Get the expectation values files
         print('\nWriting expectation values ...\n')
         ts.set_timer('test_write_exp_drv')
-        for ss, ff in zip(snames, fnames):
-            test_write_exp_drv(ff, Np, Ns, Nc)
+        if snames.__class__ == list:
+            for ss, ff in zip(snames, fnames):
+                test_write_exp_drv(ff, Np, Ns, Nc)
+        else:
+            test_write_exp_drv(fnames, Np, Ns, Nc)
+
         ts.get_timer()
         
     else:

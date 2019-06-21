@@ -20,4 +20,4 @@ module load apps/python3/3.6-intel-2018.3
 module load compilers/intel/2019 
 module list
 
-srun -n NTASKS EXE
+time srun -n NTASKS EXE
