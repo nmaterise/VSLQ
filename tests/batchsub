@@ -1,0 +1,23 @@
+#!/bin/bash
+#SBATCH -A 181210154039
+#SBATCH --job-name="jname"
+#SBATCH -N NODES
+#SBATCH -n NTASKS
+#SBATCH --ntasks-per-node=NTASKSPERNODE
+#SBATCH --exclusive
+#SBATCH --export=ALL
+#SBATCH --time=TIME
+#SBATCH -o CWD/logs/stdout_jname.log
+#SBATCH -e CWD/logs/stderr_jname.log
+#SBATCH --partition=PARTITION
+#SBATCH --qos=full
+##SBATCH --profile=all
+
+cd BATCHWD
+pwd
+
+module load apps/python3/3.6-intel-2018.3
+module load compilers/intel/2019 
+module list
+
+srun -n NTASKS EXE
