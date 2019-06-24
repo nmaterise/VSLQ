@@ -1,0 +1,37 @@
+#!/bin/bash
+#
+# Commands to submit srun scripts for different initial states
+# and loss or no loss
+
+# Inputs to change for each initial state
+VSLQBIN=$(pwd)/vslq_readout_tests.py
+PY=python3
+RTIME=00:30:00
+JNAME="vslq_readout_post"
+WRITEOPT="p"
+Np=5
+RUNMODE="run"
+
+# Check if ssub is on the PATH
+if [ -z "$(which ssub)" ]
+then
+    printf "ssub not found. Add it to the PATH environment variable!"
+    exit 1
+fi
+
+# Loop over the initial states
+## Lossless case
+# Call ssub
+ssub --run-type batch --proc-type compute --n-proc 1 --n-nodes 1 \
+--batch-time $RTIME \
+--batch-exe "$PY $VSLQBIN -p $WRITEOPT --Np $Np --is_lossy 0 -s L0 L1 l1L1" \
+--batch-jname ${JNAME}_lossless --batch-wd $HOME/VSLQ \
+--batch-run $RUNMODE
+
+## Lossy case
+# Call ssub
+ssub --run-type batch --proc-type compute --n-proc 1 --n-nodes 1 \
+--batch-time $RTIME \
+--batch-exe "$PY $VSLQBIN -p $WRITEOPT --Np $Np --is_lossy 1 -s L0 L1 l1L1" \
+--batch-jname ${JNAME}_lossy --batch-wd $HOME/VSLQ \
+--batch-run $RUNMODE

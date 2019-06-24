@@ -147,6 +147,11 @@ def test_mp_vslq(init_state=None, plot_write='wp', Np=3, is_lossy=False):
     Use both CPU's to divide and conquer the problem
     """
 
+    # Convert the init_state to a string if length is one, otherwise just use
+    # the list as is
+    if (len(init_state) < 2) and (init_state != None):
+        init_state = init_state[0]
+    
     # Some example settings
     Ns = 2; Nc = Np;
     W = 2*np.pi*70; delta = 2*np.pi*700;
@@ -169,9 +174,6 @@ def test_mp_vslq(init_state=None, plot_write='wp', Np=3, is_lossy=False):
     ## Time step 1/10 of largest energy scale
     Tdhalf = 4*np.pi / delta
     dt0 = Tdhalf / 20
-
-    ## Decay time of transmons
-    # tmax = (0.05 / gammap)
     tmax = max(1./gl, 1./gr)
 
     ## Number of points as N = tmax / dt + 1
@@ -185,15 +187,18 @@ def test_mp_vslq(init_state=None, plot_write='wp', Np=3, is_lossy=False):
     sname_dict = {'L0' : 'L_0', 'L1' : 'L_1', 'l1L1' : '\widetilde{L1}'}
     
     ## Use the input state or set them manually here
-    snames = sname_dict[init_state] if init_state != None\
+    if init_state.__class__ == str:
+        snames = sname_dict[init_state] if init_state != None\
              else ['L_0', 'L_1', '\widetilde{L1}']
-
-    ## Use the input state to run one file or manually enter here
-    fnames = 'data/rho_vslq_%s_%s_%.2f_us' % (fext, init_state, tmax) \
-                if init_state != None else \
-             ['data/rho_vslq_%s_L0_%.2f_us'   % (fext, tmax),
-              'data/rho_vslq_%s_L1_%.2f_us'   % (fext, tmax),
-              'data/rho_vslq_%s_l1L1_%.2f_us' % (fext, tmax)]
+        fnames = 'data/rho_vslq_%s_%s_%.2f_us' % (fext, init_state, tmax) \
+                    if init_state != None else \
+                 ['data/rho_vslq_%s_L0_%.2f_us'   % (fext, tmax),
+                  'data/rho_vslq_%s_L1_%.2f_us'   % (fext, tmax),
+                  'data/rho_vslq_%s_l1L1_%.2f_us' % (fext, tmax)]
+    else:
+        snames = [sname_dict[ss] for ss in init_state]
+        fnames = ['data/rho_vslq_%s_%s_%.2f_us' % (fext, ss, tmax) \
+                 for ss in init_state]
 
     # Bypass the calculation and just plot
     ## Only plot
@@ -231,7 +236,8 @@ def test_mp_vslq_parser():
     p = ap.ArgumentParser(description='Pseudo parallel vslq readout dynamics')
     
     # Add arguments
-    p.add_argument('-s', '--init_state', dest='init_state', type=str,
+    p.add_argument('-s', '--init_state', dest='init_state',
+                   type=str, nargs='+',
                    help='Initial state vector [l1L1, l1L0, L0, L1]')
     p.add_argument('-p', '--plot_write', dest='plot_write', type=str,
                    help='Plot the data after the data has been generated\n'\

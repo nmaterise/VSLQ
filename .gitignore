@@ -29,3 +29,4 @@ tags
 # Omit ssub generated batch submit scripts
 batchsub_vslq_readout_*
 !batchsub_vslq_readout_tests
+!batchsub_vslq_readout_tests_post

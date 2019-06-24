@@ -113,6 +113,7 @@ def plot_expect(tpts, op_avg, op_name='',
         tstamp = datetime.datetime.today().strftime('%y%m%d_%H:%M:%S')
         fig.savefig('figs/expect_%s.pdf' % tstamp, format='pdf') 
 
+
 def plot_expect_phase_ab(tpts, op_a, op_b, 
                             opname, snames, 
                             fext=None, scale=1):
