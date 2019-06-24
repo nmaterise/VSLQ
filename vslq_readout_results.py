@@ -33,7 +33,9 @@ def parfor_expect(opp, vslq_obj, rho, pre0, pre1):
     fid.close()
 
 
-def write_expect(rho_fname, Ns, Np, Nc, ops=['']):
+def write_expect(rho_fname, Ns, Np, Nc, 
+                 ops=[''], readout_mode='single',
+                 use_sparse=False):
     """
     Write the expectation values to file given the file name for the density
     matrix
@@ -60,7 +62,9 @@ def write_expect(rho_fname, Ns, Np, Nc, ops=['']):
 
     # Create an instance of the class
     vslq_obj = vslq_mops_readout(Ns, Np, Nc, np.zeros(10), 0, 0,
-                                0, 0, 0, 0, 0)
+                                0, 0, 0, 0, 0, 
+                                use_sparse=use_sparse,
+                                readout_mode=readout_mode)
 
     # Loop over the operators in the list
     for opp in ops:
@@ -86,7 +90,7 @@ def write_expect_driver(fname, args):
     """
 
     # VSLQ Hilbert space
-    Np, Ns, Nc = args
+    Np, Ns, Nc, readout_mode = args
 
     # Operators to average
     # ops = ['ac', 'P13', 'P04', 'P24', 'Xl', 'Xr']
@@ -94,16 +98,16 @@ def write_expect_driver(fname, args):
     ops.append('ac')
     ops.append('PXlXr') 
     # ops = ['ac']
-    write_expect(fname, Ns, Np, Nc, ops)
+    write_expect(fname, Ns, Np, Nc, ops, readout_mode=readout_mode)
 
 
-def test_write_exp_drv(fname, Np, Ns, Nc):
+def test_write_exp_drv(fname, Np, Ns, Nc, readout_mode='single'):
     """
     Run code above on a single file, then all the files in parallel
     """
     
     # Use the arguments from the input parameters
-    args = (Np, Ns, Nc)
+    args = (Np, Ns, Nc, readout_mode)
 
     print('Computing expectation values for (%s) data ...' % fname)
     write_expect_driver('%s.bin' % fname, args)
@@ -184,7 +188,7 @@ def test_plot_all_expect(sname, fprefix, tpts, Np,
 
 def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
                              fnames, Ntout=25, plot_write='wp',
-                             is_lossy=False):
+                             is_lossy=False, readout_mode='single'):
     """
     Writes and plots the expectation values for all operators
     
@@ -200,6 +204,7 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
     Ntout:          number of times to decimate down to
     plot_write:     plot, write, or write and plot
     is_lossy:       use lossy terms in the VSLQ Hamiltonian or not 
+    readout_mode:   'single' or 'dual' mode readout scheme
 
     """
 
@@ -243,7 +248,7 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
             print('\nWriting expectation values ...\n')
             ts.set_timer('test_write_exp_drv')
             for ss, ff in zip(snames, fnames):
-                test_write_exp_drv(ff, Np, Ns, Nc)
+                test_write_exp_drv(ff, Np, Ns, Nc, readout_mode=readout_mode)
             ts.get_timer()
 
             # Plot the results
@@ -256,7 +261,7 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
         else:
             print('\nWriting expectation values ...\n')
             ts.set_timer('test_write_exp_drv')
-            test_write_exp_drv(fnames, Np, Ns, Nc)
+            test_write_exp_drv(fnames, Np, Ns, Nc, readout_mode=readout_mode)
             ts.get_timer()
             print('\nPlotting expectation values ...\n')
             ts.set_timer('test_plot_all_expect')
@@ -278,9 +283,9 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
         ts.set_timer('test_write_exp_drv')
         if snames.__class__ == list:
             for ss, ff in zip(snames, fnames):
-                test_write_exp_drv(ff, Np, Ns, Nc)
+                test_write_exp_drv(ff, Np, Ns, Nc, readout_mode=readout_mode)
         else:
-            test_write_exp_drv(fnames, Np, Ns, Nc)
+            test_write_exp_drv(fnames, Np, Ns, Nc, readout_mode=readout_mode)
 
         ts.get_timer()
         

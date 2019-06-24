@@ -7,9 +7,10 @@
 VSLQBIN=$(pwd)/vslq_readout_tests.py
 PY=python3
 RTIME=00:30:00
-JNAME="vslq_readout_post"
 WRITEOPT="p"
 Np=5
+READOUTMODE="single"
+JNAME="vslq_readout_post_${READOUTMODE}"
 RUNMODE="run"
 
 # Check if ssub is on the PATH
@@ -24,7 +25,8 @@ fi
 # Call ssub
 ssub --run-type batch --proc-type compute --n-proc 1 --n-nodes 1 \
 --batch-time $RTIME \
---batch-exe "$PY $VSLQBIN -p $WRITEOPT --Np $Np --is_lossy 0 -s L0 L1 l1L1" \
+--batch-exe "$PY $VSLQBIN -p $WRITEOPT --Np $Np --is_lossy 0 \
+                          -s L0 L1 l1L1 -r $READOUTMODE" \
 --batch-jname ${JNAME}_lossless --batch-wd $HOME/VSLQ \
 --batch-run $RUNMODE
 
@@ -32,6 +34,7 @@ ssub --run-type batch --proc-type compute --n-proc 1 --n-nodes 1 \
 # Call ssub
 ssub --run-type batch --proc-type compute --n-proc 1 --n-nodes 1 \
 --batch-time $RTIME \
---batch-exe "$PY $VSLQBIN -p $WRITEOPT --Np $Np --is_lossy 1 -s L0 L1 l1L1" \
+--batch-exe "$PY $VSLQBIN -p $WRITEOPT --Np $Np --is_lossy 1 \
+                          -s L0 L1 l1L1 -r $READOUTMODE" \
 --batch-jname ${JNAME}_lossy --batch-wd $HOME/VSLQ \
 --batch-run $RUNMODE

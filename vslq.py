@@ -159,7 +159,8 @@ class vslq_mops_readout(base_cqed_mops):
     """
 
     def __init__(self, Ns, Np, Nc, tpts, W, d, Om,
-                 gammap, gammas, gl, gr, use_sparse=False):
+                 gammap, gammas, gl, gr,
+                 use_sparse=False, readout_mode='single'):
         """
         Constructor for the class
 
@@ -175,13 +176,16 @@ class vslq_mops_readout(base_cqed_mops):
         gammap/s:       loss rate for the primary / shadow qubits
         gl, gr:         readout strengths for left / right primary qubits
         use_sparse:     converts all operators (rho, H, etc.) to sparse csc
+        readout_mode:   single or dual for different numbers of cavity modes
+                        used to separately readout Xl and Xr
 
         """
 
         # Set the class members here
         base_cqed_mops.__init__(self, tpts=tpts, Ns=Ns, Np=Np, Nc=Nc,
                 W=W, d=d, Om=Om, gammap=gammap, gammas=gammas,
-                gl=gl, gr=gr, use_sparse=use_sparse)
+                gl=gl, gr=gr,
+                use_sparse=use_sparse, readout_mode=readout_mode)
 
         # Set the states and the operators for the class
         self.set_states()
@@ -224,42 +228,85 @@ class vslq_mops_readout(base_cqed_mops):
         Set the initial state
         """
 
-        # Initialize to a 0-logical state in the primary and shadow lattice
-        if logical_state == 'L0':
-            # Initial density matrix
-            # psi0 = |L0> x |L0> x |0s> x |0s> x |0c>
-            self.psi0 = mops.tensor(self.L0, self.L0,
-                                    self.ss0dm, self.ss0dm,
-                                    self.c0dm)
-        elif logical_state == 'L1':
-            # psi0 = |L1> x |L1> x |0s> x |0s> x |0c>
-            self.psi0 = mops.tensor(self.L1, self.L1,
-                                    self.ss0dm, self.ss0dm,
-                                    self.c0dm)
-        elif logical_state == 'l1L0':
-            # psi0 = |1> x |L0> x |0s> x |0s> x |0c>
-            self.psi0 = mops.tensor(self.s1dm, self.L0,
-                                    self.ss0dm, self.ss0dm,
-                                    self.c0dm)
-        elif logical_state == 'l1L1':
-            # psi0 = |1> x |L1> x |0s> x |0s> x |0c>
-            self.psi0 = mops.tensor(self.s1dm, self.L1,
-                                    self.ss0dm, self.ss0dm,
-                                    self.c0dm)
-        elif logical_state == 'r1L0':
-            # psi0 = |L0> x |1> x |0s> x |0s> x |0c>
-            self.psi0 = mops.tensor(self.L0, self.s1dm,
-                                    self.ss0dm, self.ss0dm,
-                                    self.c0dm)
-        elif logical_state == 'r1L1':
-            # psi0 = |L1> x |1> x |0s> x |0s> x |0c>
-            self.psi0 = mops.tensor(self.L1, self.s1dm,
-                                    self.ss0dm, self.ss0dm,
-                                    self.c0dm)
-        else:
-            self.psi0 = psi0
-            self.state_name = ''
-            return 0;
+        # Single mode states
+        if self.readout_mode == 'single':
+
+            # Initialize to a 0-logical state in the primary and shadow lattice
+            if logical_state == 'L0':
+                # Initial density matrix
+                # psi0 = |L0> x |L0> x |0s> x |0s> x |0c>
+                self.psi0 = mops.tensor(self.L0, self.L0,
+                                        self.ss0dm, self.ss0dm,
+                                        self.c0dm)
+            elif logical_state == 'L1':
+                # psi0 = |L1> x |L1> x |0s> x |0s> x |0c>
+                self.psi0 = mops.tensor(self.L1, self.L1,
+                                        self.ss0dm, self.ss0dm,
+                                        self.c0dm)
+            elif logical_state == 'l1L0':
+                # psi0 = |1> x |L0> x |0s> x |0s> x |0c>
+                self.psi0 = mops.tensor(self.s1dm, self.L0,
+                                        self.ss0dm, self.ss0dm,
+                                        self.c0dm)
+            elif logical_state == 'l1L1':
+                # psi0 = |1> x |L1> x |0s> x |0s> x |0c>
+                self.psi0 = mops.tensor(self.s1dm, self.L1,
+                                        self.ss0dm, self.ss0dm,
+                                        self.c0dm)
+            elif logical_state == 'r1L0':
+                # psi0 = |L0> x |1> x |0s> x |0s> x |0c>
+                self.psi0 = mops.tensor(self.L0, self.s1dm,
+                                        self.ss0dm, self.ss0dm,
+                                        self.c0dm)
+            elif logical_state == 'r1L1':
+                # psi0 = |L1> x |1> x |0s> x |0s> x |0c>
+                self.psi0 = mops.tensor(self.L1, self.s1dm,
+                                        self.ss0dm, self.ss0dm,
+                                        self.c0dm)
+            else:
+                self.psi0 = psi0
+                self.state_name = ''
+                return 0;
+
+        # Dual mode states
+        elif self.readout_mode == 'dual':
+
+            # Initialize to a 0-logical state in the primary and shadow lattice
+            if logical_state == 'L0':
+                # Initial density matrix
+                # psi0 = |L0> x |L0> x |0s> x |0s> x |0c>
+                self.psi0 = mops.tensor(self.L0, self.L0,
+                                        self.ss0dm, self.ss0dm,
+                                        self.c0dm, self.c0dm)
+            elif logical_state == 'L1':
+                # psi0 = |L1> x |L1> x |0s> x |0s> x |0c>
+                self.psi0 = mops.tensor(self.L1, self.L1,
+                                        self.ss0dm, self.ss0dm,
+                                        self.c0dm, self.c0dm)
+            elif logical_state == 'l1L0':
+                # psi0 = |1> x |L0> x |0s> x |0s> x |0c>
+                self.psi0 = mops.tensor(self.s1dm, self.L0,
+                                        self.ss0dm, self.ss0dm,
+                                        self.c0dm, self.c0dm)
+            elif logical_state == 'l1L1':
+                # psi0 = |1> x |L1> x |0s> x |0s> x |0c>
+                self.psi0 = mops.tensor(self.s1dm, self.L1,
+                                        self.ss0dm, self.ss0dm,
+                                        self.c0dm, self.c0dm)
+            elif logical_state == 'r1L0':
+                # psi0 = |L0> x |1> x |0s> x |0s> x |0c>
+                self.psi0 = mops.tensor(self.L0, self.s1dm,
+                                        self.ss0dm, self.ss0dm,
+                                        self.c0dm, self.c0dm)
+            elif logical_state == 'r1L1':
+                # psi0 = |L1> x |1> x |0s> x |0s> x |0c>
+                self.psi0 = mops.tensor(self.L1, self.s1dm,
+                                        self.ss0dm, self.ss0dm,
+                                        self.c0dm, self.c0dm)
+            else:
+                self.psi0 = psi0
+                self.state_name = ''
+                return 0;
 
         # Convert the density matrix to sparse
         if self.use_sparse:
@@ -267,21 +314,6 @@ class vslq_mops_readout(base_cqed_mops):
 
         # Set the state name
         self.state_name = logical_state
-
-
-    def is_ket(self, ket):
-        """
-        Checks if a numpy array is a ket vector
-        """
-
-        # Get the dimensions nrows x mcols
-        dims = np.shape(ket)
-
-        # Check the number of columns
-        if dims[1] == 1:
-            return True
-        else:
-            return False
 
 
     def get_proj_k(self, ket, is_log_state=False, num_st_idx=4):
@@ -301,10 +333,19 @@ class vslq_mops_readout(base_cqed_mops):
 
             # Normalize the resulting projector
             kjldm = mops.ket2dm(mops.basis(self.Np, num_st_idx))
-            Pk = mops.tensor(kjldm, self.s0dm,
-                             self.ss0dm, self.ss0dm,
-                             self.c0dm)
 
+            ## Single and dual readout mode options
+            if self.readout_mode == 'single':
+                Pk = mops.tensor(kjldm, self.s0dm,
+                                 self.ss0dm, self.ss0dm,
+                                 self.c0dm)
+            elif self.readout_mode == 'dual':
+                Pk = mops.tensor(kjldm, self.s0dm,
+                                 self.ss0dm, self.ss0dm,
+                                 self.c0dm, self.c0dm)
+            else:
+                raise TypeError('(%s) readout mode not supported.' \
+                                % self.readout_mode)
 
         return Pk
 
@@ -335,24 +376,69 @@ class vslq_mops_readout(base_cqed_mops):
         self.Ip = np.eye(self.Np)
         self.Ic = np.eye(self.Nc)
 
-        # Projection operators |1Ll> <1Ll|, |1Lr> <1Lr|
-        self.Pl1 = mops.tensor(self.s1dm, self.Ip, self.Is, self.Is, self.Ic)
-        self.Pr1 = mops.tensor(self.Ip, self.s1dm, self.Is, self.Is, self.Ic)
+        # Readout mode options
+        ## Single mode
+        if self.readout_mode == 'single':
+        
+            # Projection operators |1Ll> <1Ll|, |1Lr> <1Lr|
+            self.Pl1 = mops.tensor(self.s1dm, self.Ip,
+                                   self.Is, self.Is, self.Ic)
+            self.Pr1 = mops.tensor(self.Ip, self.s1dm,
+                                   self.Is, self.Is, self.Ic)
 
-        # Destruction operators
-        ## Primary qubits
-        ap0 = mops.destroy(self.Np)
-        self.apl = mops.tensor(ap0, self.Ip, self.Is, self.Is, self.Ic)
-        self.apr = mops.tensor(self.Ip, ap0, self.Is, self.Is, self.Ic)
+            # Destruction operators
+            ## Primary qubits
+            ap0 = mops.destroy(self.Np)
+            self.apl = mops.tensor(ap0, self.Ip, self.Is, self.Is, self.Ic)
+            self.apr = mops.tensor(self.Ip, ap0, self.Is, self.Is, self.Ic)
 
-        ## Shadow resonators
-        as0 = mops.destroy(self.Ns)
-        self.asl = mops.tensor(self.Ip, self.Ip, as0, self.Is, self.Ic)
-        self.asr = mops.tensor(self.Ip, self.Ip, self.Is, as0, self.Ic)
+            ## Shadow resonators
+            as0 = mops.destroy(self.Ns)
+            self.asl = mops.tensor(self.Ip, self.Ip, as0, self.Is, self.Ic)
+            self.asr = mops.tensor(self.Ip, self.Ip, self.Is, as0, self.Ic)
 
-        ## Cavity resonator
-        ac0 = mops.destroy(self.Nc)
-        self.ac = mops.tensor(self.Ip, self.Ip, self.Is, self.Is, ac0)
+            ## Cavity resonator
+            ac0 = mops.destroy(self.Nc)
+            self.ac = mops.tensor(self.Ip, self.Ip, self.Is, self.Is, ac0)
+
+        ## Dual mode
+        elif self.readout_mode == 'dual':
+        
+            # Projection operators |1Ll> <1Ll|, |1Lr> <1Lr|
+            self.Pl1 = mops.tensor(self.s1dm, self.Ip,
+                                   self.Is, self.Is,
+                                   self.Ic, self.Ic)
+            self.Pr1 = mops.tensor(self.Ip, self.s1dm,
+                                   self.Is, self.Is,
+                                   self.Ic, self.Ic)
+
+            # Destruction operators
+            ## Primary qubits
+            ap0 = mops.destroy(self.Np)
+            self.apl = mops.tensor(ap0, self.Ip,
+                                   self.Is, self.Is,
+                                   self.Ic, self.Ic)
+            self.apr = mops.tensor(self.Ip, ap0,
+                                   self.Is, self.Is,
+                                   self.Ic, self.Ic)
+
+            ## Shadow resonators
+            as0 = mops.destroy(self.Ns)
+            self.asl = mops.tensor(self.Ip, self.Ip,
+                                   as0, self.Is,
+                                   self.Ic, self.Ic)
+            self.asr = mops.tensor(self.Ip, self.Ip,
+                                   self.Is, as0,
+                                   self.Ic, self.Ic)
+
+            ## Cavity resonator
+            ac0 = mops.destroy(self.Nc)
+            self.acl = mops.tensor(self.Ip, self.Ip,
+                                   self.Is, self.Is,
+                                   ac0, self.Ic)
+            self.acr = mops.tensor(self.Ip, self.Ip,
+                                   self.Is, self.Is,
+                                   self.Ic, ac0)
 
         ## Two photon operators on the logical manifold
         self.Xl = (self.apl@self.apl \
@@ -384,8 +470,14 @@ class vslq_mops_readout(base_cqed_mops):
             Hps = np.zeros(Hs.shape, dtype=Hs.dtype)
 
         # Hpc = gl (ac + ac^t) Xl + gr (ac + ac^t) Xr
-        Hpc = self.gl * (self.ac + mops.dag(self.ac)) @ self.Xl \
-            + self.gr * (self.ac + mops.dag(self.ac)) @ self.Xr
+        ## Single mode
+        if self.readout_mode == 'single':
+            Hpc = self.gl * (self.ac + mops.dag(self.ac)) @ self.Xl \
+                + self.gr * (self.ac + mops.dag(self.ac)) @ self.Xr
+        ## Dual mode
+        if self.readout_mode == 'dual':
+            Hpc = self.gl * (self.acl + mops.dag(self.acl)) @ self.Xl \
+                + self.gr * (self.acr + mops.dag(self.acr)) @ self.Xr
 
         # Time independent Hamiltonian is sum of all contributions
         # Ignore the shadow / bath interaction for now

@@ -24,6 +24,7 @@ def parfor_vslq_dynamics(Np, Ns, Nc, W, delta,
                          gl, gr,
                          init_state, tpts, dt,
                          fext,
+                         readout_mode,
                          use_hdf5=False,
                          use_sparse=False):
     """
@@ -39,6 +40,8 @@ def parfor_vslq_dynamics(Np, Ns, Nc, W, delta,
     gammap, gammas:     loss rates for the primary and shadow objects
     tpts, dt:           times to evaluate the density matrix and rk4 timestep
     fext:               filename extensions
+    readout_mode:       'single' / 'dual' for different modes of readout for the
+                        left and right primary qubits
     
     kwargs:
     ------
@@ -57,7 +60,8 @@ def parfor_vslq_dynamics(Np, Ns, Nc, W, delta,
 
     ## Run for | L1 > state
     my_vslq = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
-                 gammap, gammas, gl, gr, use_sparse=use_sparse)
+                 gammap, gammas, gl, gr, use_sparse=use_sparse,
+                 readout_mode=readout_mode)
     my_vslq.set_init_state(logical_state=init_state)
     print('Running dynamics for |%s> ...' % init_state)
 
@@ -93,7 +97,8 @@ def parfor_vslq_dynamics(Np, Ns, Nc, W, delta,
 def parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
                          Om, gammap, gammas,
                          gl, gr,
-                         init_states, tpts, dt, fext=''):
+                         init_states, tpts, dt,
+                         fext='', readout_mode='single'):
     """
     Creates threads for the multiprocessing module to distribute the work
     for different instances of the same job with different inputs
@@ -109,6 +114,7 @@ def parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
     init_states:        if list then parallel, else serial
     tpts, dt:           times to evaluate the density matrix and rk4 timestep
     fext:               filename extension
+    readout_mode:       'single' / 'dual' readout of Xl and Xr
 
     Returns:
     -------
@@ -126,7 +132,8 @@ def parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
                 zip( [Np]*nsize, [Ns]*nsize, [Nc]*nsize,[W]*nsize,
                      [delta]*nsize, [Om]*nsize, [gammap]*nsize, 
                      [gammas]*nsize, [gl]*nsize, [gr]*nsize,
-                     init_states, [tpts]*nsize, [dt]*nsize, [fext]*nsize))
+                     init_states, [tpts]*nsize, [dt]*nsize, 
+                    [fext]*nsize, [readout_mode]*nsize))
 
         # Close pool and join results
         print('Releasing multiprocessing pool ...')
@@ -138,11 +145,12 @@ def parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
         res = parfor_vslq_dynamics(Np, Ns, Nc, W,
                      delta, Om, gammap, 
                      gammas, gl, gr,
-                     init_states, tpts, dt, fext)
+                     init_states, tpts, dt, fext, readout_mode)
         
 
 
-def test_mp_vslq(init_state=None, plot_write='wp', Np=3, is_lossy=False):
+def test_mp_vslq(init_state=None, plot_write='wp',
+                 Np=3, is_lossy=False, readout_mode='single'):
     """
     Use both CPU's to divide and conquer the problem
     """
@@ -158,7 +166,7 @@ def test_mp_vslq(init_state=None, plot_write='wp', Np=3, is_lossy=False):
     # # T1p = 20 us, T1s = 109 ns
 
     # Readout strengths
-    gl = W / 50; gr = gl;
+    gl = W / 60; gr = gl;
 
     # Turn off dissipation
     if is_lossy:
@@ -204,10 +212,12 @@ def test_mp_vslq(init_state=None, plot_write='wp', Np=3, is_lossy=False):
     ## Only plot
     if plot_write == 'p':
         # Call the post processing code to plot the results
+        Ntout = 50
         print('\nPost processing dynamics ...\n')
         vslq_readout_dump_expect(tpts, Np, Ns, Nc,
-                                 snames, fnames, Ntout=25,
-                                 plot_write=plot_write, is_lossy=is_lossy)
+                                 snames, fnames, Ntout=Ntout,
+                                 plot_write=plot_write, 
+                                 is_lossy=is_lossy)
 
     ## Compute and plot 
     elif plot_write == 'w' or plot_write == 'wp':
@@ -215,15 +225,15 @@ def test_mp_vslq(init_state=None, plot_write='wp', Np=3, is_lossy=False):
         init_states = init_state if init_state != None \
                                  else ['L0', 'L1', 'l1L1']
         parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
-                             Om, gammap, gammas,
-                             gl, gr,
-                             init_states, tpts, dt, fext=fext)
+                            Om, gammap, gammas,
+                            gl, gr,
+                            init_states, tpts, dt, fext=fext)
 
         # Call the post processing code to plot the results
         print('\nPost processing dynamics ...\n')
         vslq_readout_dump_expect(tpts, Np, Ns, Nc,
                                  snames, fnames, 
-                                 Ntout=25, plot_write=plot_write,
+                                 Ntout=Ntout, plot_write=plot_write,
                                  is_lossy=is_lossy)
 
 
@@ -238,21 +248,31 @@ def test_mp_vslq_parser():
     # Add arguments
     p.add_argument('-s', '--init_state', dest='init_state',
                    type=str, nargs='+',
-                   help='Initial state vector [l1L1, l1L0, L0, L1]')
+                   help='Initial state vector [l1L1, l1L0, L0, L1]',
+                  default='L0')
     p.add_argument('-p', '--plot_write', dest='plot_write', type=str,
                    help='Plot the data after the data has been generated\n'\
-                        '(w,p,wp) -- write, plot, write and plot')
+                        '(w,p,wp) -- write, plot, write and plot',
+                    default='wp')
     p.add_argument('-n', '--Np', dest='Np', type=int,
-                   help='Number of levels in the primary and readout modes')
+                   help='Number of levels in the primary and readout modes',
+                    default=5)
     p.add_argument('-l', '--is_lossy', dest='is_lossy', type=int,
-                    help='Turn on / off the dissipation and Hsp term')
+                    help='Turn on / off the dissipation and Hsp term',
+                    default=0)
+    p.add_argument('-r', '--readout_mode', dest='readout_mode', type=str,
+                   help='Readout mode (single / dual)', default='single')
     
     # Get the arguments
     args = p.parse_args()
     print('Commandline arguments before function call: {}'.format(args))
 
     # Call the function as desired
-    test_mp_vslq(args.init_state, args.plot_write, args.Np, args.is_lossy)
+    test_mp_vslq(args.init_state,
+                 args.plot_write,
+                 args.Np,
+                 args.is_lossy,
+                 args.readout_mode)
 
 
 if __name__ == '__main__':
