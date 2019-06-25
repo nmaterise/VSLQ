@@ -26,7 +26,7 @@ def parfor_vslq_dynamics(Np, Ns, Nc, W, delta,
                          fext,
                          readout_mode,
                          use_hdf5=False,
-                         use_sparse=False):
+                         use_sparse=True):
     """
     Parallel for loop kernel function for computing vslq dynamics
 

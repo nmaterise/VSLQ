@@ -73,11 +73,23 @@ class base_cqed_mops(object):
         Set the collapse operators, assuming the system is shot noise limited,
         e.g. T2 > T1 
         """
+
         # Use 1/T1 for the transmon and the line width of the cavity
-        if not np.any(cops):
-            self.cops = [np.zeros(cop.shape) for cop in cops]
+        if cops.__class__ == np.ndarray:
+            if not np.any(gammas):
+                self.cops = [np.zeros(cop.shape) for cop in cops]
+            else:
+                self.cops = [np.sqrt(g)*cop for g, cop in zip(gammas, cops)]
+
+        # Trust that the matrix-scalar multiplication makes sense
+        # for the scipy.sparse.csr_matrix representation
         else:
-            self.cops = [np.sqrt(g)*cop for g, cop in zip(gammas, cops)]
+            if not np.any(gammas):
+                self.cops = [scsp.csr_matrix(cop.shape, dtype=cop.dtype) \
+                            for cop in zip(cops)]
+            else:
+                self.cops = [np.sqrt(g)*cop for g, cop in zip(gammas, cops)]
+
 
 
     def run_dynamics(self, tpts, *args, **kwargs):

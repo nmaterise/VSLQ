@@ -363,7 +363,9 @@ class mesolve_rk4(rk4):
         ## Compute the unitary contribution
         ## Time independent case
         if self.H.__class__ == np.ndarray \
-            or self.H.__class__ == scipy.sparse.csc.csc_matrix:
+            or self.H.__class__ == scipy.sparse.csc.csc_matrix \
+            or self.H.__class__ == scipy.sparse.csr.csr_matrix:
+
             Hcommrho = -1j*(self.H@rho - rho@self.H)
 
         ## Time dependent case
@@ -382,7 +384,17 @@ class mesolve_rk4(rk4):
             raise TypeError('Time dependent Hamiltonian type (%s) not \
                              supported' % self.H.__class__)
         ## Compute the dissipator contribution
-        Drho = np.zeros(rho.shape, dtype=np.complex128)
+        ### Handle csc matrix format
+        if self.H.__class__ == scipy.sparse.csc.csc_matrix:
+            Drho = scipy.sparse.csc_matrix(rho.shape, dtype=np.complex128)
+        ### Handle csr matrix format
+        elif self.H.__class__ == scipy.sparse.csr.csr_matrix:
+            Drho = scipy.sparse.csr_matrix(rho.shape, dtype=np.complex128)
+        ### Handle dense numpy array format
+        elif self.H.__class__ == np.ndarray:
+            Drho = np.zeros(rho.shape, dtype=np.complex128)
+
+        ## Compute the sum of the dissipators
         for ck in self.cops:
             Drho += ck@rho@mops.dag(ck) \
                     - 0.5 * (mops.dag(ck)@ck@rho + rho@mops.dag(ck)@ck)
@@ -399,14 +411,13 @@ class mesolve_rk4(rk4):
         time-dependent drive terms
         """
 
-        # If sparse, convert the Hamiltonian to csc format
-        if self.use_sparse:
-            self.H == scsp.csc_matrix(self.H)
-
         # Handle time-independent Hamiltonian
         if self.H.__class__ == np.ndarray \
-            or self.H.__class__ == scsp.csc.csc_matrix:
+            or self.H.__class__ == scsp.csc.csc_matrix \
+            or self.H.__class__ == scsp.csr.csr_matrix:
+
             rho_out = self.solver()
+
             return rho_out
        
         # Handle the case involving drive terms
@@ -435,7 +446,7 @@ class mesolve_rk4(rk4):
             return rho_out
 
         else:
-            raise('H.__class__ ({}) not supported'.format(H.__class__))
+            raise('H.__class__ ({}) not supported'.format(self.H.__class__))
        
 
 class langevin_rk4(rk4):

@@ -308,10 +308,6 @@ class vslq_mops_readout(base_cqed_mops):
                 self.state_name = ''
                 return 0;
 
-        # Convert the density matrix to sparse
-        if self.use_sparse:
-            self.psi0 = scsp.csc_matrix(self.psi0)
-
         # Set the state name
         self.state_name = logical_state
 
@@ -347,6 +343,10 @@ class vslq_mops_readout(base_cqed_mops):
                 raise TypeError('(%s) readout mode not supported.' \
                                 % self.readout_mode)
 
+        # Convert the operators to sparse csr
+        if self.use_sparse:
+            Pk = scsp.csr_matrix(Pk)
+
         return Pk
 
 
@@ -364,6 +364,12 @@ class vslq_mops_readout(base_cqed_mops):
             setattr(self, 'P%d' % j, self.get_proj_k(mops.basis(self.Np, j),
                         False, j))
 
+        # Convert to sparse matrices
+        if self.use_sparse:
+            for j in range(0, self.Np):
+                setattr(self, 'P%d' % j,
+                        scsp.csr_matrix(getattr(self, 'P%d' % j)))
+
 
     def set_ops(self):
         """
@@ -375,6 +381,9 @@ class vslq_mops_readout(base_cqed_mops):
         self.Is = np.eye(self.Ns)
         self.Ip = np.eye(self.Np)
         self.Ic = np.eye(self.Nc)
+
+        # Operators list
+        ops_list = ['Pl1', 'Pr1', 'Xl', 'Xr', 'apl', 'apr', 'asl', 'asr']
 
         # Readout mode options
         ## Single mode
@@ -400,6 +409,9 @@ class vslq_mops_readout(base_cqed_mops):
             ## Cavity resonator
             ac0 = mops.destroy(self.Nc)
             self.ac = mops.tensor(self.Ip, self.Ip, self.Is, self.Is, ac0)
+
+            ## Add readout operators to the list
+            ops_list.append('ac')
 
         ## Dual mode
         elif self.readout_mode == 'dual':
@@ -440,11 +452,20 @@ class vslq_mops_readout(base_cqed_mops):
                                    self.Is, self.Is,
                                    self.Ic, ac0)
 
+            ## Add readout operators to the list
+            ops_list.append('acl')
+            ops_list.append('acr')
+
         ## Two photon operators on the logical manifold
         self.Xl = (self.apl@self.apl \
                   + mops.dag(self.apl)@mops.dag(self.apl)) / np.sqrt(2)
         self.Xr = (self.apr@self.apr \
                   + mops.dag(self.apr)@mops.dag(self.apr)) / np.sqrt(2)
+
+        # Convert operators to sparse
+        if self.use_sparse:
+            for op in ops_list:
+                setattr(self, op, scsp.csr_matrix(getattr(self, op)))
 
 
     def set_H(self, tpts, args):

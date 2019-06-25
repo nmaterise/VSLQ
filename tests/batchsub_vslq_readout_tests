@@ -6,10 +6,10 @@
 # Inputs to change for each initial state
 VSLQBIN=$(pwd)/vslq_readout_tests.py
 PY=python3
-RTIME=04:00:00
+RTIME=00:30:00
 WRITEOPT="wp"
 Np=5
-READOUTMODE="dual"
+READOUTMODE="single"
 JNAME="vslq_readout_${READOUTMODE}"
 RUNMODE="run"
 
