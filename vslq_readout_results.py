@@ -35,7 +35,7 @@ def parfor_expect(opp, vslq_obj, rho, pre0, pre1):
 
 def write_expect(rho_fname, Ns, Np, Nc, 
                  ops=[''], readout_mode='single',
-                 use_sparse=False):
+                 use_sparse=True):
     """
     Write the expectation values to file given the file name for the density
     matrix

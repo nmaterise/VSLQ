@@ -7,6 +7,7 @@ transmon longitudinal, VSLQ dispersive, and VSLQ longitudinal-like
 import numpy as np
 import ode_solver as odes
 import ode_solver_super as sodes
+import scipy.sparse as scsp
 
 
 class base_cqed_mops(object):
@@ -75,7 +76,7 @@ class base_cqed_mops(object):
         """
 
         # Use 1/T1 for the transmon and the line width of the cavity
-        if cops.__class__ == np.ndarray:
+        if cops[0].__class__ == np.ndarray:
             if not np.any(gammas):
                 self.cops = [np.zeros(cop.shape) for cop in cops]
             else:
@@ -83,9 +84,9 @@ class base_cqed_mops(object):
 
         # Trust that the matrix-scalar multiplication makes sense
         # for the scipy.sparse.csr_matrix representation
-        else:
+        elif cops[0].__class__ == scsp.csr.csr_matrix:
             if not np.any(gammas):
-                self.cops = [scsp.csr_matrix(cop.shape, dtype=cop.dtype) \
+                self.cops = [scsp.csr_matrix(cop.get_shape(), dtype=cop.dtype) \
                             for cop in zip(cops)]
             else:
                 self.cops = [np.sqrt(g)*cop for g, cop in zip(gammas, cops)]
