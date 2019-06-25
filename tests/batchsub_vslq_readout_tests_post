@@ -9,7 +9,7 @@ PY=python3
 RTIME=00:30:00
 WRITEOPT="p"
 Np=5
-READOUTMODE="single"
+READOUTMODE="dual"
 JNAME="vslq_readout_post_${READOUTMODE}"
 RUNMODE="run"
 

@@ -210,14 +210,15 @@ def test_mp_vslq(init_state=None, plot_write='wp',
 
     # Bypass the calculation and just plot
     ## Only plot
+    Ntout = 50
     if plot_write == 'p':
         # Call the post processing code to plot the results
-        Ntout = 50
         print('\nPost processing dynamics ...\n')
         vslq_readout_dump_expect(tpts, Np, Ns, Nc,
                                  snames, fnames, Ntout=Ntout,
                                  plot_write=plot_write, 
-                                 is_lossy=is_lossy)
+                                 is_lossy=is_lossy,
+                                 readout_mode=readout_mode)
 
     ## Compute and plot 
     elif plot_write == 'w' or plot_write == 'wp':
@@ -227,14 +228,16 @@ def test_mp_vslq(init_state=None, plot_write='wp',
         parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
                             Om, gammap, gammas,
                             gl, gr,
-                            init_states, tpts, dt, fext=fext)
+                            init_states, tpts, dt, fext=fext,
+                            readout_mode=readout_mode)
 
         # Call the post processing code to plot the results
         print('\nPost processing dynamics ...\n')
         vslq_readout_dump_expect(tpts, Np, Ns, Nc,
                                  snames, fnames, 
                                  Ntout=Ntout, plot_write=plot_write,
-                                 is_lossy=is_lossy)
+                                 is_lossy=is_lossy,
+                                 readout_mode=readout_mode)
 
 
 def test_mp_vslq_parser():

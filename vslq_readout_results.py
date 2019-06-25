@@ -95,9 +95,14 @@ def write_expect_driver(fname, args):
     # Operators to average
     # ops = ['ac', 'P13', 'P04', 'P24', 'Xl', 'Xr']
     ops = ['P%d' % i for i in range(0, Np)]
-    ops.append('ac')
+    if readout_mode == 'single':
+        print('Writing single mode data ...')
+        ops.append('ac')
+    elif readout_mode == 'dual':
+        print('Writing dual mode data ...')
+        ops.append('acl')
+        ops.append('acr')
     ops.append('PXlXr') 
-    # ops = ['ac']
     write_expect(fname, Ns, Np, Nc, ops, readout_mode=readout_mode)
 
 
@@ -110,26 +115,51 @@ def test_write_exp_drv(fname, Np, Ns, Nc, readout_mode='single'):
     args = (Np, Ns, Nc, readout_mode)
 
     print('Computing expectation values for (%s) data ...' % fname)
+    print('Using readout mode (%s) ...' % readout_mode)
     write_expect_driver('%s.bin' % fname, args)
 
 
-def plot_ac(tpts, fnames, snames, fext, dfac=10):
+def plot_ac(tpts, fnames, snames, fext, dfac=10, readout_mode='single'):
     """
     Plot the cavity operator quadratures
     """
 
-    # Get the data from the 0 and 1 states
-    with open('%s_ac.bin' % fnames[0], 'rb') as fid:
-        a0 = pk.load(fid)
-    with open('%s_ac.bin' % fnames[1], 'rb') as fid:
-        a1 = pk.load(fid)
-    
+    # Check for the readout mode
     print('Decimation factor and total number of points: %d, %d' %
-            ( dfac, int(tpts.size/dfac) ) )
+                ( dfac, int(tpts.size/dfac) ) )
+    print('Using readout_mode (%s) ...' % readout_mode)
 
-    # Plot the results
-    ppt.plot_expect_complex_ab(a0[0::dfac], a1[0::dfac], 
-            'a_c', snames, fext, scale=0.5)
+    ## Single mode settings
+    if readout_mode == 'single':
+
+        # Get the data from the 0 and 1 states
+        with open('%s_ac.bin' % fnames[0], 'rb') as fid:
+            a0 = pk.load(fid)
+        with open('%s_ac.bin' % fnames[1], 'rb') as fid:
+            a1 = pk.load(fid)
+
+        # Plot the results
+        ppt.plot_expect_complex_ab(a0[0::dfac], a1[0::dfac], 
+                'a_c', snames, fext, scale=0.5)
+
+    ## Dual mode settings
+    if readout_mode == 'dual':
+
+        # Get the data from the 0 and 1 states
+        with open('%s_acl.bin' % fnames[0], 'rb') as fid:
+            al0 = pk.load(fid)
+        with open('%s_acl.bin' % fnames[1], 'rb') as fid:
+            al1 = pk.load(fid)
+        with open('%s_acr.bin' % fnames[0], 'rb') as fid:
+            ar0 = pk.load(fid)
+        with open('%s_acr.bin' % fnames[1], 'rb') as fid:
+            ar1 = pk.load(fid)
+
+        # Plot the results
+        ppt.plot_expect_complex_ab(al0[0::dfac], al1[0::dfac], 
+                'a_{cl}', snames, fext, scale=0.5)
+        ppt.plot_expect_complex_ab(ar0[0::dfac], ar1[0::dfac], 
+                'a_{cr}', snames, fext, scale=0.5)
 
 
 def test_plot_all_expect(sname, fprefix, tpts, Np,
@@ -238,7 +268,8 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
         if snames.__class__ == list:
             print('\nGenerating phase diagrams ...\n')
             ts.set_timer('plot_ac')
-            plot_ac(tpts, fnames, snames, 'L0L1_%s' % fext_lossy, dfac=dfac)
+            plot_ac(tpts, fnames, snames, 'L0L1_%s' % fext_lossy,
+                    dfac=dfac, readout_mode=readout_mode)
             ts.get_timer()
 
     # Compute, then plot
@@ -272,8 +303,10 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
         # Plot the phase diagram for the readout cavity state
         if snames.__class__ == list:
             print('\nGenerating phase diagrams ...\n')
+            print('>> Readout mode: (%s)')
             ts.set_timer('plot_ac')
-            plot_ac(tpts, fnames, snames, 'L1L0', dfac=dfac)
+            plot_ac(tpts, fnames, snames, 'L1L0',
+                    dfac=dfac, readout_mode=readout_mode)
             ts.get_timer()
 
     # Just compute
