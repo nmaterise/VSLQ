@@ -12,6 +12,7 @@ Np=5
 READOUTMODE="single"
 JNAME="vslq_readout_${READOUTMODE}"
 RUNMODE="run"
+NPROC=1
 
 # Check if ssub is on the PATH
 if [ -z "$(which ssub)" ]
@@ -25,7 +26,7 @@ fi
 for initst in "L0" "L1" "l1L1"
 do
     # Call ssub
-    ssub --run-type batch --proc-type compute --n-proc 1 --n-nodes 1\
+    ssub --run-type batch --proc-type compute --n-proc $NPROC --n-nodes 1\
     --batch-time $RTIME\
     --batch-exe "$PY $VSLQBIN -p $WRITEOPT --Np $Np --is_lossy 0 \
                               -s $initst -r $READOUTMODE"\
@@ -37,7 +38,7 @@ done
 for initst in "L0" "L1" "l1L1"
 do
     # Call ssub
-    ssub --run-type batch --proc-type compute --n-proc 1 --n-nodes 1\
+    ssub --run-type batch --proc-type compute --n-proc $NPROC --n-nodes 1\
     --batch-time $RTIME\
     --batch-exe "$PY $VSLQBIN -p $WRITEOPT --Np $Np --is_lossy 1 \
                               -s $initst -r $READOUTMODE"\

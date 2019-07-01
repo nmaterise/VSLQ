@@ -410,7 +410,7 @@ class mesolve_rk4(rk4):
         Run the rk4 solver, providing the interpolated
         time-dependent drive terms
         """
-
+    
         # Handle time-independent Hamiltonian
         if self.H.__class__ == np.ndarray \
             or self.H.__class__ == scsp.csc.csc_matrix \
@@ -446,7 +446,8 @@ class mesolve_rk4(rk4):
             return rho_out
 
         else:
-            raise('H.__class__ ({}) not supported'.format(self.H.__class__))
+            raise TypeError('H.__class__ ({}) not supported'\
+                            .format(self.H.__class__))
        
 
 class langevin_rk4(rk4):

@@ -86,8 +86,8 @@ class base_cqed_mops(object):
         # for the scipy.sparse.csr_matrix representation
         elif cops[0].__class__ == scsp.csr.csr_matrix:
             if not np.any(gammas):
-                self.cops = [scsp.csr_matrix(cop.get_shape(), dtype=cop.dtype) \
-                            for cop in zip(cops)]
+                self.cops = [scsp.csr_matrix(cop.shape, dtype=cop.dtype) \
+                            for cop in cops]
             else:
                 self.cops = [np.sqrt(g)*cop for g, cop in zip(gammas, cops)]
 
@@ -107,6 +107,8 @@ class base_cqed_mops(object):
             use_sparse = kwargs['use_sparse']
         else:
             dt = self.tpts.max() / (10 * self.tpts.size)
+
+        # Run the master equation solver
         me_rk4 = odes.mesolve_rk4(self.psi0, tpts, dt,
                 self.H, self.cops, use_sparse=use_sparse) 
     
@@ -182,10 +184,8 @@ class base_cqed_sops(object):
         """
         # Use 1/T1 for the transmon and the line width of the cavity
         if not np.any(cops):
-            print('Zeroing out cops ...')
             self.cops = [np.zeros(cop.shape) for cop in cops]
         else:
-            print('Setting cops ...')
             self.cops = [np.sqrt(g)*cop for g, cop in zip(gammas, cops)]
 
 

@@ -503,3 +503,7 @@ class vslq_mops_readout(base_cqed_mops):
         # Time independent Hamiltonian is sum of all contributions
         # Ignore the shadow / bath interaction for now
         self.H = Hp + Hs + Hps + Hpc
+
+        # Convert to sparse
+        if self.use_sparse:
+            self.H = scsp.csr_matrix(self.H)

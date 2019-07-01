@@ -3,6 +3,7 @@
 Results for the VSLQ Readout, APS March Meeting
 """
 
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
@@ -13,29 +14,12 @@ import post_proc_tools as ppt
 import matrix_ops as mops
 import re as regex
 from prof_tools import tstamp
-
-def parfor_expect(opp, vslq_obj, rho, pre0, pre1):
-    """
-    Parallel for kernel function to compute and write results to file
-    """
-
-    # Get the object with the name in the string list
-    op = getattr(vslq_obj, opp)
-    print('Writing <%d> to file from density matrix (%s)' % opp)
-    
-    # Compute the expectation value
-    op_exp = mops.expect(op, rho)
-    
-    # Write the result to file
-    op_fname = '%s/%s_%s.bin' % (pre0, pre1, opp)
-    with open(op_fname, 'wb') as fid:
-        pk.dump(op_exp, fid)
-    fid.close()
+import h5py as hdf
 
 
 def write_expect(rho_fname, Ns, Np, Nc, 
                  ops=[''], readout_mode='single',
-                 use_sparse=True):
+                 use_sparse=True, use_hdf5=True):
     """
     Write the expectation values to file given the file name for the density
     matrix
@@ -50,9 +34,29 @@ def write_expect(rho_fname, Ns, Np, Nc,
     """
 
     # Load the data from file
-    with open(rho_fname, 'rb') as fid:
-        rho = pk.load(fid)
-    fid.close()
+    ## Load from HDF5
+    if use_hdf5:
+        
+        ## Check that the file was written
+        if os.path.exists(rho_fname):
+            print('Reading from filename (%s) ...' % rho_fname)
+            fid = hdf.File(name=rho_fname, mode='r+')
+            print('fid.keys: {}'.format(fid.keys()))
+            
+            ## Check that the data was actually written to file
+            if 'rho' in fid.keys():
+                rho = fid['rho'][()]
+            else:
+                raise NameError('key (rho) not found.')
+        else:
+            raise NameError('Filename (%s) does not exist, cannot open file.' \
+                        % rho_fname)
+    
+    ## Load from pickle
+    else:
+        with open(rho_fname, 'rb') as fid:
+            rho = pk.load(fid)
+        fid.close()
     
     # Get the filename prefix
     fsplit = rho_fname.split('/')
@@ -79,9 +83,27 @@ def write_expect(rho_fname, Ns, Np, Nc,
         
         # Write the result to file
         op_fname = '%s/%s_%s.bin' % (prefix0, prefix2, opp)
-        with open(op_fname, 'wb') as fid:
-            pk.dump(op_exp, fid)
-        fid.close() 
+
+        # Check for HDF5 option
+        if use_hdf5:
+            
+            ## If the name exists, write to it, else create a new dataset
+            if opp in fid.keys():
+                print('Writing key (%s) ...' % opp)
+                fid[opp] = op_exp
+            else:
+                print('Creating and writing key (%s) ...' % opp)
+                fid.create_dataset(name=opp, data=op_exp)
+        
+        ## Write directly to separate pickle files
+        else:
+            with open(op_fname, 'wb') as fid:
+                pk.dump(op_exp, fid)
+            fid.close() 
+
+    # Close the file
+    if use_hdf5:
+        fid.close()
 
 
 def write_expect_driver(fname, args):
@@ -90,7 +112,7 @@ def write_expect_driver(fname, args):
     """
 
     # VSLQ Hilbert space
-    Np, Ns, Nc, readout_mode = args
+    Np, Ns, Nc, readout_mode, use_hdf5 = args
 
     # Operators to average
     # ops = ['ac', 'P13', 'P04', 'P24', 'Xl', 'Xr']
@@ -103,23 +125,32 @@ def write_expect_driver(fname, args):
         ops.append('acl')
         ops.append('acr')
     ops.append('PXlXr') 
-    write_expect(fname, Ns, Np, Nc, ops, readout_mode=readout_mode)
+    write_expect(fname, Ns, Np, Nc, ops,
+                 readout_mode=readout_mode, use_hdf5=use_hdf5)
 
 
-def test_write_exp_drv(fname, Np, Ns, Nc, readout_mode='single'):
+def test_write_exp_drv(fname, Np, Ns, Nc,
+                       readout_mode='single', use_hdf5=True):
     """
     Run code above on a single file, then all the files in parallel
     """
     
     # Use the arguments from the input parameters
-    args = (Np, Ns, Nc, readout_mode)
+    args = (Np, Ns, Nc, readout_mode, use_hdf5)
 
     print('Computing expectation values for (%s) data ...' % fname)
     print('Using readout mode (%s) ...' % readout_mode)
-    write_expect_driver('%s.bin' % fname, args)
+
+    # Change the file extension from bin to hdf5 to denote the difference
+    # between the pickle and h5py outputs
+    if use_hdf5:
+        write_expect_driver('%s.hdf5' % fname, args)
+    else:
+        write_expect_driver('%s.bin' % fname, args)
 
 
-def plot_ac(tpts, fnames, snames, fext, dfac=10, readout_mode='single'):
+def plot_ac(tpts, fnames, snames, fext, dfac=10,
+            readout_mode='single', use_hdf5=True):
     """
     Plot the cavity operator quadratures
     """
@@ -129,14 +160,30 @@ def plot_ac(tpts, fnames, snames, fext, dfac=10, readout_mode='single'):
                 ( dfac, int(tpts.size/dfac) ) )
     print('Using readout_mode (%s) ...' % readout_mode)
 
+    # Open the hdf5 file if 
+
     ## Single mode settings
     if readout_mode == 'single':
 
-        # Get the data from the 0 and 1 states
-        with open('%s_ac.bin' % fnames[0], 'rb') as fid:
-            a0 = pk.load(fid)
-        with open('%s_ac.bin' % fnames[1], 'rb') as fid:
-            a1 = pk.load(fid)
+        # Use the hdf5 readout approach
+        if use_hdf5:
+            ## Get the L0 logical state data
+            fid0 = hdf.File('%s.hdf5' % fnames[0], 'r')
+            a0 = fid0['ac'][()]
+            fid0.close()
+
+            ## Get the L1 logical state data
+            fid1 = hdf.File('%s.hdf5' % fnames[1], 'r')
+            a1 = fid1['ac'][()]
+            fid1.close()
+
+        # Use pickle to get the data
+        else:
+            # Get the data from the 0 and 1 states
+            with open('%s_ac.bin' % fnames[0], 'rb') as fid:
+                a0 = pk.load(fid)
+            with open('%s_ac.bin' % fnames[1], 'rb') as fid:
+                a1 = pk.load(fid)
 
         # Plot the results
         ppt.plot_expect_complex_ab(a0[0::dfac], a1[0::dfac], 
@@ -145,15 +192,31 @@ def plot_ac(tpts, fnames, snames, fext, dfac=10, readout_mode='single'):
     ## Dual mode settings
     if readout_mode == 'dual':
 
-        # Get the data from the 0 and 1 states
-        with open('%s_acl.bin' % fnames[0], 'rb') as fid:
-            al0 = pk.load(fid)
-        with open('%s_acl.bin' % fnames[1], 'rb') as fid:
-            al1 = pk.load(fid)
-        with open('%s_acr.bin' % fnames[0], 'rb') as fid:
-            ar0 = pk.load(fid)
-        with open('%s_acr.bin' % fnames[1], 'rb') as fid:
-            ar1 = pk.load(fid)
+        # Use HDFf to get the data
+        if use_hdf5:
+            ## Get the L0 logical state data
+            fid0 = hdf.File('%s.hdf5' % fnames[0], 'r')
+            al0 = fid0['acl'][()]
+            ar0 = fid0['acr'][()]
+            fid0.close()
+
+            ## Get the L1 logical state data
+            fid1 = hdf.File('%s.hdf5' % fnames[1], 'r')
+            al1 = fid1['acl'][()]
+            ar1 = fid1['acr'][()]
+            fid1.close()
+    
+        # Use pickle to get the data
+        else:
+            # Get the data from the 0 and 1 states
+            with open('%s_acl.bin' % fnames[0], 'rb') as fid:
+                al0 = pk.load(fid)
+            with open('%s_acl.bin' % fnames[1], 'rb') as fid:
+                al1 = pk.load(fid)
+            with open('%s_acr.bin' % fnames[0], 'rb') as fid:
+                ar0 = pk.load(fid)
+            with open('%s_acr.bin' % fnames[1], 'rb') as fid:
+                ar1 = pk.load(fid)
 
         # Plot the results
         ppt.plot_expect_complex_ab(al0[0::dfac], al1[0::dfac], 
@@ -163,7 +226,8 @@ def plot_ac(tpts, fnames, snames, fext, dfac=10, readout_mode='single'):
 
 
 def test_plot_all_expect(sname, fprefix, tpts, Np,
-                         use_logical=True, is_lossy=False):
+                         use_logical=True, is_lossy=False,
+                         use_hdf5=True):
     """
     Plot the expectation values vs. time
     """
@@ -187,18 +251,38 @@ def test_plot_all_expect(sname, fprefix, tpts, Np,
 
     # Iterate over all of the operators whose expectation
     # values we have calculated
-    for op in oplist:
-        fname = '%s_%s.bin' % (fprefix, op)
-        with open(fname, 'rb') as fid:
-            opdata = pk.load(fid)
-        
-        # Set the label for the legends
-        plabel = regex.findall('\d+', op)[-1] if regex.findall('\d+', op) != []\
-                else op
-        if op == 'PXlXr':
-            plabel = r'L_0'
-        ax.plot(tpts, opdata.real, label=r'$\left|{%s}\right>$' % plabel,
-                linewidth=lw)
+    ## Use h5py
+    if use_hdf5:
+        ## Open the hdf5 file
+        fid = hdf.File('%s.hdf5' % fprefix, 'r')
+        for op in oplist:
+            # Get the data from the data set in fid
+            opdata = fid[op][()]
+            
+            # Set the label for the legends
+            plabel = regex.findall('\d+', op)[-1] if \
+                     regex.findall('\d+', op) != []\
+                     else op
+            if op == 'PXlXr':
+                plabel = r'L_0'
+            ax.plot(tpts, opdata.real, label=r'$\left|{%s}\right>$' % plabel,
+                    linewidth=lw)
+    
+    ## Use pickle
+    else:
+        for op in oplist:
+            fname = '%s_%s.bin' % (fprefix, op)
+            with open(fname, 'rb') as fid:
+                opdata = pk.load(fid)
+            
+            # Set the label for the legends
+            plabel = regex.findall('\d+', op)[-1] if \
+                     regex.findall('\d+', op) != []\
+                     else op
+            if op == 'PXlXr':
+                plabel = r'L_0'
+            ax.plot(tpts, opdata.real, label=r'$\left|{%s}\right>$' % plabel,
+                    linewidth=lw)
 
     # Set the axes labels
     ax.set_xlabel(r'Time [$\mu$s]', fontsize=fsize)

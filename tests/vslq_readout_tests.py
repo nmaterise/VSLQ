@@ -8,6 +8,7 @@ Tests of the readout + VSLQ
 from test_utils import set_path
 set_path()
 
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle as pk
@@ -25,7 +26,7 @@ def parfor_vslq_dynamics(Np, Ns, Nc, W, delta,
                          init_state, tpts, dt,
                          fext,
                          readout_mode,
-                         use_hdf5=False,
+                         use_hdf5=True,
                          use_sparse=True):
     """
     Parallel for loop kernel function for computing vslq dynamics
@@ -75,10 +76,22 @@ def parfor_vslq_dynamics(Np, Ns, Nc, W, delta,
         ## Write the result to file
         ## Replace pickle dump with hdf5 write
         ts.set_timer('|%s> hdf5 write' % init_state)
-        fid = hdf.File('data/rho_vslq_%s_%s_%.2f_us.bin' \
-                % (fext, init_state, tmax))
+
+        ## Check for existing file
+        hdf_path = 'data/rho_vslq_%s_%s_%.2f_us.hdf5' \
+                % (fext, init_state, tmax)
+
+        ## Truncate and write, otherwise, create
+        if os.path.exists(hdf_path):
+            fid = hdf.File(hdf_path, 'w')
+        else:
+            fid = hdf.File(hdf_path, 'a')
+
         ## Add a data set to the file
-        fid.create_dataset(data=rho1, name=init_state, dtype=rho1.dtype)
+        if 'rho' in fid.keys():
+            fid['rho'] = rho1
+        else:
+            fid.create_dataset(data=rho1, name='rho')
         fid.close()
         ts.get_timer()
 
