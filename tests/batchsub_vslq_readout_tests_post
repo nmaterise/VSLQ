@@ -6,12 +6,14 @@
 # Inputs to change for each initial state
 VSLQBIN=$(pwd)/vslq_readout_tests.py
 PY=python3
-RTIME=00:30:00
+RTIME=02:00:00
 WRITEOPT="p"
 Np=5
 READOUTMODE="dual"
 JNAME="vslq_readout_post_${READOUTMODE}"
 RUNMODE="run"
+NPROC=18
+export OMP_NUM_THREADS=$NPROC
 
 # Check if ssub is on the PATH
 if [ -z "$(which ssub)" ]
@@ -23,7 +25,7 @@ fi
 # Loop over the initial states
 ## Lossless case
 # Call ssub
-ssub --run-type batch --proc-type compute --n-proc 1 --n-nodes 1 \
+ssub --run-type batch --proc-type compute --n-proc $NPROC --n-nodes 1 \
 --batch-time $RTIME \
 --batch-exe "$PY $VSLQBIN -p $WRITEOPT --Np $Np --is_lossy 0 \
                           -s L0 L1 l1L1 -r $READOUTMODE" \
@@ -32,7 +34,7 @@ ssub --run-type batch --proc-type compute --n-proc 1 --n-nodes 1 \
 
 ## Lossy case
 # Call ssub
-ssub --run-type batch --proc-type compute --n-proc 1 --n-nodes 1 \
+ssub --run-type batch --proc-type compute --n-proc $NPROC --n-nodes 1 \
 --batch-time $RTIME \
 --batch-exe "$PY $VSLQBIN -p $WRITEOPT --Np $Np --is_lossy 1 \
                           -s L0 L1 l1L1 -r $READOUTMODE" \

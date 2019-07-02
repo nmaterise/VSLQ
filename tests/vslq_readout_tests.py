@@ -161,7 +161,6 @@ def parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
                      init_states, tpts, dt, fext, readout_mode)
         
 
-
 def test_mp_vslq(init_state=None, plot_write='wp',
                  Np=3, is_lossy=False, readout_mode='single'):
     """
@@ -185,10 +184,10 @@ def test_mp_vslq(init_state=None, plot_write='wp',
     if is_lossy:
         print('Turning on dissipation ...')
         gammap = 0.05; gammas = 9.2; Om = 5.5;
-        fext = 'lossy'
+        fext = 'lossy_%s' % readout_mode
     else:
         print('Turning off dissipation ...')
-        fext = 'lossless'
+        fext = 'lossless_%s' % readout_mode
         gammap = 0.; gammas = 0.; Om = 0.;
 
     # Set the time array

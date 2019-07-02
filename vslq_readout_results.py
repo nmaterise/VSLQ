@@ -227,7 +227,7 @@ def plot_ac(tpts, fnames, snames, fext, dfac=10,
 
 def test_plot_all_expect(sname, fprefix, tpts, Np,
                          use_logical=True, is_lossy=False,
-                         use_hdf5=True):
+                         use_hdf5=True, readout_mode='single'):
     """
     Plot the expectation values vs. time
     """
@@ -244,10 +244,12 @@ def test_plot_all_expect(sname, fprefix, tpts, Np,
     if use_logical:
         oplist = ['P%d' % i for i in range(0, Np)]
         oplist.append('PXlXr') 
-        fstr = 'full_lossy' if is_lossy else 'full_lossless'
+        fstr = 'full_lossy_%s' % readout_mode if is_lossy \
+               else 'full_lossless_%s' % readout_mode
     else:
         oplist = ['P%d' % i for i in range(0, Np)]
-        fstr = 'zoom_lossy' if is_lossy else 'zoom_lossless'
+        fstr = 'zoom_lossy_%s' % readout_mode if is_lossy \
+               else 'zoom_lossless_%s' % readout_mode
 
     # Iterate over all of the operators whose expectation
     # values we have calculated
@@ -333,7 +335,8 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
     dfac = Nt // Ntt
 
     # Construction the lossy file extension string
-    fext_lossy = 'lossy' if is_lossy else 'lossless'
+    fext_lossy = 'lossy_%s' % readout_mode if is_lossy \
+                 else 'lossless_%s' % readout_mode
 
     # Skip straigh to the plotds
     if plot_write == 'p':
@@ -370,8 +373,10 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
             print('\nPlotting expectation values ...\n')
             ts.set_timer('test_plot_all_expect')
             for ss, ff in zip(snames, fnames):
-                test_plot_all_expect(ss, ff, tpts, Np, True, is_lossy)
-                test_plot_all_expect(ss, ff, tpts, Np, False, is_lossy)
+                test_plot_all_expect(ss, ff, tpts, Np, True, is_lossy,
+                                     readout_mode)
+                test_plot_all_expect(ss, ff, tpts, Np, False, is_lossy,
+                                     readout_mode)
             ts.get_timer()
         else:
             print('\nWriting expectation values ...\n')
@@ -380,8 +385,10 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
             ts.get_timer()
             print('\nPlotting expectation values ...\n')
             ts.set_timer('test_plot_all_expect')
-            test_plot_all_expect(snames, fnames, tpts, Np, True, is_lossy)
-            test_plot_all_expect(snames, fnames, tpts, Np, False, is_lossy)
+            test_plot_all_expect(snames, fnames, tpts, Np, True, is_lossy,
+                                 readout_mode)
+            test_plot_all_expect(snames, fnames, tpts, Np, False, is_lossy,
+                                 readout_mode)
             ts.get_timer()
 
         # Plot the phase diagram for the readout cavity state

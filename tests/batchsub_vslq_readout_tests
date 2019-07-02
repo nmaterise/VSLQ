@@ -6,13 +6,16 @@
 # Inputs to change for each initial state
 VSLQBIN=$(pwd)/vslq_readout_tests.py
 PY=python3
-RTIME=00:30:00
+RTIME=06:00:00
 WRITEOPT="wp"
 Np=5
-READOUTMODE="single"
+READOUTMODE="dual"
 JNAME="vslq_readout_${READOUTMODE}"
 RUNMODE="run"
-NPROC=1
+NPROC=18
+
+# Set the number of threads to number cores
+export OMP_NUM_THREADS=$NPROC
 
 # Check if ssub is on the PATH
 if [ -z "$(which ssub)" ]
