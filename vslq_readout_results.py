@@ -90,7 +90,8 @@ def write_expect(rho_fname, Ns, Np, Nc,
             ## If the name exists, write to it, else create a new dataset
             if opp in fid.keys():
                 print('Writing key (%s) ...' % opp)
-                fid[opp] = op_exp
+                ## Overwrite the existing data
+                fid[opp][()] = op_exp
             else:
                 print('Creating and writing key (%s) ...' % opp)
                 fid.create_dataset(name=opp, data=op_exp)
@@ -367,7 +368,7 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
             ts.get_timer()
 
     # Compute, then plot
-    elif plot_write == 'wp':
+    elif plot_write == 'wp' or plot_write == 'pwp':
         # Get the expectation values files
         if snames.__class__ == list:
             print('\nWriting expectation values ...\n')

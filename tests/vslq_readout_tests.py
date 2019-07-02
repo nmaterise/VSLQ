@@ -89,7 +89,7 @@ def parfor_vslq_dynamics(Np, Ns, Nc, W, delta,
 
         ## Add a data set to the file
         if 'rho' in fid.keys():
-            fid['rho'] = rho1
+            fid['rho'][()] = rho1
         else:
             fid.create_dataset(data=rho1, name='rho')
         fid.close()
@@ -194,7 +194,7 @@ def test_mp_vslq(init_state=None, plot_write='wp',
     ## Time step 1/10 of largest energy scale
     Tdhalf = 4*np.pi / delta
     dt0 = Tdhalf / 20
-    tmax = max(1./gl, 1./gr)
+    tmax = 10*max(1./gl, 1./gr)
 
     ## Number of points as N = tmax / dt + 1
     Ntpts = int(np.ceil(tmax / dt0)) + 1
@@ -222,7 +222,7 @@ def test_mp_vslq(init_state=None, plot_write='wp',
 
     # Bypass the calculation and just plot
     ## Only plot
-    Ntout = 50
+    Ntout = 25
     if plot_write == 'p':
         # Call the post processing code to plot the results
         print('\nPost processing dynamics ...\n')
@@ -242,6 +242,21 @@ def test_mp_vslq(init_state=None, plot_write='wp',
                             gl, gr,
                             init_states, tpts, dt, fext=fext,
                             readout_mode=readout_mode)
+
+        # Call the post processing code to plot the results
+        print('\nPost processing dynamics ...\n')
+        vslq_readout_dump_expect(tpts, Np, Ns, Nc,
+                                 snames, fnames, 
+                                 Ntout=Ntout, plot_write=plot_write,
+                                 is_lossy=is_lossy,
+                                 readout_mode=readout_mode)
+
+    ## Skip the dynamics and just write then plot
+    elif plot_write == 'pwp':
+        print('Skipping dynamics to compute the expectation values ...')
+        # Call the multiprocess wrapper or the serial version
+        init_states = init_state if init_state != None \
+                                 else ['L0', 'L1', 'l1L1']
 
         # Call the post processing code to plot the results
         print('\nPost processing dynamics ...\n')

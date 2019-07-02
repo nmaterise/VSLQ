@@ -322,7 +322,7 @@ class vslq_mops_readout(base_cqed_mops):
         if is_log_state:
 
             # Return the projection of the initial state onto to itself
-            Pk = self.psi0
+            Pk = self.Xl @ self.Xr
 
         # cover the error state case
         else:

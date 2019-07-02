@@ -289,7 +289,6 @@ class rk4:
         Nt = self.tpts.size if h >= self.tpts.max() / self.tpts.size\
                 else int(np.ceil(self.tpts.max() / h))
         tpts = np.linspace(self.tpts.min(), self.tpts.max(), Nt)
-       
 
         # Set rho[t=0] = rho0
         rho = [self.rho0] * Nt
