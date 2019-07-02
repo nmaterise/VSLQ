@@ -232,7 +232,10 @@ def test_plot_all_expect(sname, fprefix, tpts, Np,
     Plot the expectation values vs. time
     """
 
-    print('|%s> from (%s.bin)' % (sname, fprefix))
+    if use_hdf5:
+        print('|%s> from (%s.hdf5)' % (sname, fprefix))
+    else:
+        print('|%s> from (%s.bin)' % (sname, fprefix))
 
     ## Setup the plot
     fig, ax = plt.subplots(1, 1, figsize=(8, 6),
@@ -344,11 +347,15 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
         ts.set_timer('test_plot_all_expect')
         if snames.__class__ == list:
             for ss, ff in zip(snames, fnames):
-                test_plot_all_expect(ss, ff, tpts, Np, True, is_lossy)
-                test_plot_all_expect(ss, ff, tpts, Np, False, is_lossy)
+                test_plot_all_expect(ss, ff, tpts, Np, True, is_lossy,
+                        readout_mode)
+                test_plot_all_expect(ss, ff, tpts, Np, False, is_lossy,
+                        readout_mode)
         else:
-            test_plot_all_expect(snames, fnames, tpts, Np, True, is_lossy)
-            test_plot_all_expect(snames, fnames, tpts, Np, False, is_lossy)
+            test_plot_all_expect(snames, fnames, tpts, Np, True, is_lossy,
+                        readout_mode)
+            test_plot_all_expect(snames, fnames, tpts, Np, False, is_lossy,
+                        readout_mode)
         ts.get_timer()
         
         # Plot the phase diagram for the readout cavity state
