@@ -170,12 +170,16 @@ def plot_ac(tpts, fnames, snames, fext, dfac=10,
         # Use the hdf5 readout approach
         if use_hdf5:
             ## Get the L0 logical state data
-            fid0 = hdf.File('%s.hdf5' % fnames[0], 'r')
+            fname0 = '%s.hdf5' % fnames[0]
+            print('Reading file (%s) ...' % fname0)
+            fid0 = hdf.File(fname0, 'r')
             a0 = fid0['ac'][()]
             fid0.close()
 
             ## Get the L1 logical state data
-            fid1 = hdf.File('%s.hdf5' % fnames[1], 'r')
+            fname1 = '%s.hdf5' % fnames[1]
+            print('Reading file (%s) ...' % fname1)
+            fid1 = hdf.File(fname1, 'r')
             a1 = fid1['ac'][()]
             fid1.close()
 
@@ -189,7 +193,7 @@ def plot_ac(tpts, fnames, snames, fext, dfac=10,
 
         # Plot the results
         ppt.plot_expect_complex_ab(a0[0::dfac], a1[0::dfac], 
-                'a_c', snames, fext, scale=0.5)
+                'a_c', snames, fext, scale=1.0)
 
     ## Dual mode settings
     if readout_mode == 'dual':
@@ -222,9 +226,9 @@ def plot_ac(tpts, fnames, snames, fext, dfac=10,
 
         # Plot the results
         ppt.plot_expect_complex_ab(al0[0::dfac], al1[0::dfac], 
-                'a_{cl}', snames, fext, scale=0.5)
+                'a_{cl}', snames, fext, scale=1.0)
         ppt.plot_expect_complex_ab(ar0[0::dfac], ar1[0::dfac], 
-                'a_{cr}', snames, fext, scale=0.5)
+                'a_{cr}', snames, fext, scale=1.0)
 
 
 def test_plot_all_expect(sname, fprefix, tpts, Np,

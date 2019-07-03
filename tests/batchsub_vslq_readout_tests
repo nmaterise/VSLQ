@@ -6,14 +6,14 @@
 # Inputs to change for each initial state
 VSLQBIN=$(pwd)/vslq_readout_tests.py
 PY=python3
-RTIME=04:00:00
+RTIME=05:00:00
 WRITEOPT="wp"
-Np=3
+Np=5
 READOUTMODE="single"
 JNAME="vslq_readout_${READOUTMODE}"
 RUNMODE="run"
 NPROC=1
-SPARSE=0
+SPARSE=1
 
 # Set the number of threads to number cores
 export OMP_NUM_THREADS=$NPROC

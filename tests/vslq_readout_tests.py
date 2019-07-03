@@ -182,7 +182,7 @@ def test_mp_vslq(init_state=None, plot_write='wp',
         init_state = init_state[0]
     
     # Some example settings
-    Ns = 2; Nc = Np;
+    Ns = 2; Nc = Np; #Ns;
     W = 2*np.pi*70; delta = 2*np.pi*700;
     # # T1p = 20 us, T1s = 109 ns
 

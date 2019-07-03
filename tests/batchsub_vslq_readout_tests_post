@@ -8,12 +8,12 @@ VSLQBIN=$(pwd)/vslq_readout_tests.py
 PY=python3
 RTIME=00:30:00
 WRITEOPT="p"
-Np=3
+Np=5
 READOUTMODE="single"
 JNAME="vslq_readout_post_${READOUTMODE}"
 RUNMODE="run"
 NPROC=1
-SPARSE=0
+SPARSE=1
 export OMP_NUM_THREADS=$NPROC
 
 # Check if ssub is on the PATH
