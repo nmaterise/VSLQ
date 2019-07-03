@@ -26,8 +26,8 @@ def parfor_vslq_dynamics(Np, Ns, Nc, W, delta,
                          init_state, tpts, dt,
                          fext,
                          readout_mode,
-                         use_hdf5=True,
-                         use_sparse=True):
+                         use_sparse=True,
+                         use_hdf5=True):
     """
     Parallel for loop kernel function for computing vslq dynamics
 
@@ -60,10 +60,13 @@ def parfor_vslq_dynamics(Np, Ns, Nc, W, delta,
     ts = pts.tstamp()
 
     ## Run for | L1 > state
+    ts.set_timer('vslq class initialization')
     my_vslq = vslq_mops_readout(Ns, Np, Nc, tpts, W, delta, Om,
                  gammap, gammas, gl, gr, use_sparse=use_sparse,
                  readout_mode=readout_mode)
     my_vslq.set_init_state(logical_state=init_state)
+    ts.get_timer()
+
     print('Running dynamics for |%s> ...' % init_state)
 
     ts.set_timer('|%s> dynamics' % init_state)
@@ -111,7 +114,9 @@ def parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
                          Om, gammap, gammas,
                          gl, gr,
                          init_states, tpts, dt,
-                         fext='', readout_mode='single'):
+                         fext='',
+                         readout_mode='single',
+                         use_sparse=True):
     """
     Creates threads for the multiprocessing module to distribute the work
     for different instances of the same job with different inputs
@@ -128,6 +133,7 @@ def parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
     tpts, dt:           times to evaluate the density matrix and rk4 timestep
     fext:               filename extension
     readout_mode:       'single' / 'dual' readout of Xl and Xr
+    use_sparse:         use sparse matrix representation
 
     Returns:
     -------
@@ -146,7 +152,8 @@ def parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
                      [delta]*nsize, [Om]*nsize, [gammap]*nsize, 
                      [gammas]*nsize, [gl]*nsize, [gr]*nsize,
                      init_states, [tpts]*nsize, [dt]*nsize, 
-                    [fext]*nsize, [readout_mode]*nsize))
+                    [fext]*nsize, [readout_mode]*nsize,
+                    [use_sparse]*nsize))
 
         # Close pool and join results
         print('Releasing multiprocessing pool ...')
@@ -158,11 +165,13 @@ def parfor_vslq_wrapper(Np, Ns, Nc, W, delta,
         res = parfor_vslq_dynamics(Np, Ns, Nc, W,
                      delta, Om, gammap, 
                      gammas, gl, gr,
-                     init_states, tpts, dt, fext, readout_mode)
+                     init_states, tpts, dt, fext,
+                     readout_mode, use_sparse)
         
 
 def test_mp_vslq(init_state=None, plot_write='wp',
-                 Np=3, is_lossy=False, readout_mode='single'):
+                 Np=3, is_lossy=False, readout_mode='single',
+                 use_sparse=True):
     """
     Use both CPU's to divide and conquer the problem
     """
@@ -195,6 +204,7 @@ def test_mp_vslq(init_state=None, plot_write='wp',
     Tdhalf = 4*np.pi / delta
     dt0 = Tdhalf / 20
     tmax = 10*max(1./gl, 1./gr)
+    # tmax = max(1./gl, 1./gr)
 
     ## Number of points as N = tmax / dt + 1
     Ntpts = int(np.ceil(tmax / dt0)) + 1
@@ -230,7 +240,8 @@ def test_mp_vslq(init_state=None, plot_write='wp',
                                  snames, fnames, Ntout=Ntout,
                                  plot_write=plot_write, 
                                  is_lossy=is_lossy,
-                                 readout_mode=readout_mode)
+                                 readout_mode=readout_mode,
+                                 use_sparse=use_sparse)
 
     ## Compute and plot 
     elif plot_write == 'w' or plot_write == 'wp':
@@ -241,7 +252,8 @@ def test_mp_vslq(init_state=None, plot_write='wp',
                             Om, gammap, gammas,
                             gl, gr,
                             init_states, tpts, dt, fext=fext,
-                            readout_mode=readout_mode)
+                            readout_mode=readout_mode,
+                            use_sparse=use_sparse)
 
         # Call the post processing code to plot the results
         print('\nPost processing dynamics ...\n')
@@ -249,7 +261,8 @@ def test_mp_vslq(init_state=None, plot_write='wp',
                                  snames, fnames, 
                                  Ntout=Ntout, plot_write=plot_write,
                                  is_lossy=is_lossy,
-                                 readout_mode=readout_mode)
+                                 readout_mode=readout_mode,
+                                 use_sparse=use_sparse)
 
     ## Skip the dynamics and just write then plot
     elif plot_write == 'pwp':
@@ -264,7 +277,8 @@ def test_mp_vslq(init_state=None, plot_write='wp',
                                  snames, fnames, 
                                  Ntout=Ntout, plot_write=plot_write,
                                  is_lossy=is_lossy,
-                                 readout_mode=readout_mode)
+                                 readout_mode=readout_mode,
+                                 use_sparse=use_sparse)
 
 
 def test_mp_vslq_parser():
@@ -292,6 +306,8 @@ def test_mp_vslq_parser():
                     default=0)
     p.add_argument('-r', '--readout_mode', dest='readout_mode', type=str,
                    help='Readout mode (single / dual)', default='single')
+    p.add_argument('-u', '--use_sparse', dest='use_sparse', type=int,
+                   help='Use sparse matrices for Lindblad evolution', default=1)
     
     # Get the arguments
     args = p.parse_args()
@@ -302,7 +318,8 @@ def test_mp_vslq_parser():
                  args.plot_write,
                  args.Np,
                  args.is_lossy,
-                 args.readout_mode)
+                 args.readout_mode,
+                 args.use_sparse)
 
 
 if __name__ == '__main__':

@@ -41,7 +41,6 @@ def write_expect(rho_fname, Ns, Np, Nc,
         if os.path.exists(rho_fname):
             print('Reading from filename (%s) ...' % rho_fname)
             fid = hdf.File(name=rho_fname, mode='r+')
-            print('fid.keys: {}'.format(fid.keys()))
             
             ## Check that the data was actually written to file
             if 'rho' in fid.keys():
@@ -75,7 +74,7 @@ def write_expect(rho_fname, Ns, Np, Nc,
     
         # Get the object with the name in the string list
         op = getattr(vslq_obj, opp)
-        print('Writing <%s> to file from density matrix (%s)'\
+        print('Writing <%s> to file from (%s)'\
                 % (opp, rho_fname))
     
         # Compute the expectation value
@@ -89,11 +88,10 @@ def write_expect(rho_fname, Ns, Np, Nc,
             
             ## If the name exists, write to it, else create a new dataset
             if opp in fid.keys():
-                print('Writing key (%s) ...' % opp)
                 ## Overwrite the existing data
                 fid[opp][()] = op_exp
             else:
-                print('Creating and writing key (%s) ...' % opp)
+                ## Create a new data set and write to it
                 fid.create_dataset(name=opp, data=op_exp)
         
         ## Write directly to separate pickle files
@@ -113,7 +111,7 @@ def write_expect_driver(fname, args):
     """
 
     # VSLQ Hilbert space
-    Np, Ns, Nc, readout_mode, use_hdf5 = args
+    Np, Ns, Nc, readout_mode, use_hdf5, use_sparse = args
 
     # Operators to average
     # ops = ['ac', 'P13', 'P04', 'P24', 'Xl', 'Xr']
@@ -127,17 +125,20 @@ def write_expect_driver(fname, args):
         ops.append('acr')
     ops.append('PXlXr') 
     write_expect(fname, Ns, Np, Nc, ops,
-                 readout_mode=readout_mode, use_hdf5=use_hdf5)
+                 readout_mode=readout_mode,
+                 use_hdf5=use_hdf5, use_sparse=use_sparse)
 
 
 def test_write_exp_drv(fname, Np, Ns, Nc,
-                       readout_mode='single', use_hdf5=True):
+                       readout_mode='single',
+                       use_hdf5=True,
+                       use_sparse=True):
     """
     Run code above on a single file, then all the files in parallel
     """
     
     # Use the arguments from the input parameters
-    args = (Np, Ns, Nc, readout_mode, use_hdf5)
+    args = (Np, Ns, Nc, readout_mode, use_hdf5, use_sparse)
 
     print('Computing expectation values for (%s) data ...' % fname)
     print('Using readout mode (%s) ...' % readout_mode)
@@ -308,7 +309,9 @@ def test_plot_all_expect(sname, fprefix, tpts, Np,
 
 def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
                              fnames, Ntout=25, plot_write='wp',
-                             is_lossy=False, readout_mode='single'):
+                             is_lossy=False,
+                             readout_mode='single',
+                             use_sparse=True):
     """
     Writes and plots the expectation values for all operators
     
@@ -325,6 +328,7 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
     plot_write:     plot, write, or write and plot
     is_lossy:       use lossy terms in the VSLQ Hamiltonian or not 
     readout_mode:   'single' or 'dual' mode readout scheme
+    use_sparse:     use sparse matrices to carry out Lindblad evolution
 
     """
 
@@ -374,7 +378,9 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
             print('\nWriting expectation values ...\n')
             ts.set_timer('test_write_exp_drv')
             for ss, ff in zip(snames, fnames):
-                test_write_exp_drv(ff, Np, Ns, Nc, readout_mode=readout_mode)
+                test_write_exp_drv(ff, Np, Ns, Nc,
+                                   readout_mode=readout_mode,
+                                   use_sparse=use_sparse)
             ts.get_timer()
 
             # Plot the results
@@ -389,7 +395,9 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
         else:
             print('\nWriting expectation values ...\n')
             ts.set_timer('test_write_exp_drv')
-            test_write_exp_drv(fnames, Np, Ns, Nc, readout_mode=readout_mode)
+            test_write_exp_drv(fnames, Np, Ns, Nc,
+                               readout_mode=readout_mode,
+                               use_sparse=use_sparse)
             ts.get_timer()
             print('\nPlotting expectation values ...\n')
             ts.set_timer('test_plot_all_expect')
@@ -415,9 +423,13 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
         ts.set_timer('test_write_exp_drv')
         if snames.__class__ == list:
             for ss, ff in zip(snames, fnames):
-                test_write_exp_drv(ff, Np, Ns, Nc, readout_mode=readout_mode)
+                test_write_exp_drv(ff, Np, Ns, Nc,
+                                   readout_mode=readout_mode,
+                                   use_sparse=use_sparse)
         else:
-            test_write_exp_drv(fnames, Np, Ns, Nc, readout_mode=readout_mode)
+            test_write_exp_drv(fnames, Np, Ns, Nc,
+                               readout_mode=readout_mode,
+                               use_sparse=use_sparse)
 
         ts.get_timer()
         

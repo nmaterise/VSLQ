@@ -188,6 +188,11 @@ class vslq_mops_readout(base_cqed_mops):
                 use_sparse=use_sparse, readout_mode=readout_mode)
 
         # Set the states and the operators for the class
+        if self.use_sparse:
+            print('>> vslq_mops_readout with sparse matrices ...')
+        else:
+            print('>> vslq_mops_readout with dense matrices ...')
+
         self.set_states()
         self.set_ops()
         self.set_cops([self.gammas, self.gammas, self.gammap, self.gammap],
