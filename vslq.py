@@ -217,7 +217,7 @@ class vslq_mops_readout(base_cqed_mops):
 
         # Compute the density matrices corresponding to the states
         ## These correspond to the projectors |n_k > < n_k|
-        self.s0dm  = mops.ket2dm(s1);
+        self.s0dm  = mops.ket2dm(s0);
         self.s1dm  = mops.ket2dm(s1);
         self.s2dm  = mops.ket2dm(s2);
         self.ss0dm = mops.ket2dm(ss0);
@@ -482,7 +482,7 @@ class vslq_mops_readout(base_cqed_mops):
         Hp = -self.W * self.Xl@self.Xr + 0.5*self.d*(self.Pl1 + self.Pr1)
 
         # Hs = (W + d/2) (asl^t asl + asr^t asr)
-        Hs = (self.W + self.d/2.) * (mops.dag(self.asl)@self.asl \
+        Hs = (self.W + 0.5*self.d) * (mops.dag(self.asl)@self.asl \
                 + mops.dag(self.asr)@self.asr)
 
         # Hps = O (apl^t asl^t + apr^t asr^t + h.c.)

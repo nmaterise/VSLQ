@@ -213,7 +213,7 @@ def plot_expect_complex_ab(op_a, op_b,
 
     # Set the x/y limits
     amax = op_a.max(); bmax = op_b.max()
-    ymax = np.abs(amax)
+    # ymax = np.abs(amax)
     # ylim = [-1.2, 1.2]
     # xlim = ylim 
     # ax.set_xlim(xlim); ax.set_ylim(ylim)

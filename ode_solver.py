@@ -259,16 +259,6 @@ class rk4:
         self.rho0 = rho0; self.tpts = tpts; self.dt = dt
 
 
-    @staticmethod
-    def dagger(a):
-        """
-        Compute the comple conjugate transpose of an operator from its matrix
-        representation
-        """
-
-        return np.transpose(np.conjugate(a))
-
-
     def rhs(self, rho, t):
         """
         Compute the right hand side of the ODE

@@ -182,12 +182,12 @@ def test_mp_vslq(init_state=None, plot_write='wp',
         init_state = init_state[0]
     
     # Some example settings
-    Ns = 2; Nc = Np; #Ns;
+    Ns = 2; Nc = Ns;
     W = 2*np.pi*70; delta = 2*np.pi*700;
     # # T1p = 20 us, T1s = 109 ns
 
     # Readout strengths
-    gl = W / 60; gr = gl;
+    gl = W / 50; gr = gl;
 
     # Turn off dissipation
     if is_lossy:
@@ -203,8 +203,8 @@ def test_mp_vslq(init_state=None, plot_write='wp',
     ## Time step 1/10 of largest energy scale
     Tdhalf = 4*np.pi / delta
     dt0 = Tdhalf / 20
-    tmax = 10*max(1./gl, 1./gr)
-    # tmax = max(1./gl, 1./gr)
+    # tmax = 10*max(1./gl, 1./gr)
+    tmax = max(1./gl, 1./gr) / 2
 
     ## Number of points as N = tmax / dt + 1
     Ntpts = int(np.ceil(tmax / dt0)) + 1

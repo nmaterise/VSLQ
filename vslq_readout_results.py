@@ -157,9 +157,15 @@ def plot_ac(tpts, fnames, snames, fext, dfac=10,
     Plot the cavity operator quadratures
     """
 
+    # Check for None decimation factor
+    if dfac == None:
+        ddfac = 1
+    else:
+        ddfac = dfac
+
     # Check for the readout mode
     print('Decimation factor and total number of points: %d, %d' %
-                ( dfac, int(tpts.size/dfac) ) )
+                ( ddfac, int(tpts.size/ddfac) ) )
     print('Using readout_mode (%s) ...' % readout_mode)
 
     # Open the hdf5 file if 
@@ -192,7 +198,7 @@ def plot_ac(tpts, fnames, snames, fext, dfac=10,
                 a1 = pk.load(fid)
 
         # Plot the results
-        ppt.plot_expect_complex_ab(a0[0::dfac], a1[0::dfac], 
+        ppt.plot_expect_complex_ab(a0[0::ddfac], a1[0::ddfac], 
                 'a_c', snames, fext, scale=1.0)
 
     ## Dual mode settings
@@ -225,9 +231,9 @@ def plot_ac(tpts, fnames, snames, fext, dfac=10,
                 ar1 = pk.load(fid)
 
         # Plot the results
-        ppt.plot_expect_complex_ab(al0[0::dfac], al1[0::dfac], 
+        ppt.plot_expect_complex_ab(al0[0::ddfac], al1[0::ddfac], 
                 'a_{cl}', snames, fext, scale=1.0)
-        ppt.plot_expect_complex_ab(ar0[0::dfac], ar1[0::dfac], 
+        ppt.plot_expect_complex_ab(ar0[0::ddfac], ar1[0::ddfac], 
                 'a_{cr}', snames, fext, scale=1.0)
 
 
@@ -344,7 +350,7 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
     Ntt = Nt if Nt <= Ntout else Ntout
 
     # Decimation factor between 1 and Ntt // Ntout
-    dfac = Nt // Ntt
+    dfac = 1 # Nt // Ntt
 
     # Construction the lossy file extension string
     fext_lossy = 'lossy_%s' % readout_mode if is_lossy \
@@ -356,15 +362,19 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
         ts.set_timer('test_plot_all_expect')
         if snames.__class__ == list:
             for ss, ff in zip(snames, fnames):
-                test_plot_all_expect(ss, ff, tpts, Np, True, is_lossy,
-                        readout_mode)
-                test_plot_all_expect(ss, ff, tpts, Np, False, is_lossy,
-                        readout_mode)
+                test_plot_all_expect(ss, ff, tpts, Np, use_logical=True,
+                        is_lossy=is_lossy, use_hdf5=True,
+                        readout_mode=readout_mode)
+                test_plot_all_expect(ss, ff, tpts, Np, use_logical=False,
+                        is_lossy=is_lossy, use_hdf5=True,
+                        readout_mode=readout_mode)
         else:
-            test_plot_all_expect(snames, fnames, tpts, Np, True, is_lossy,
-                        readout_mode)
-            test_plot_all_expect(snames, fnames, tpts, Np, False, is_lossy,
-                        readout_mode)
+            test_plot_all_expect(snames, fnames, tpts, Np, use_logical=True,
+                        is_lossy=is_lossy, use_hdf5=True,
+                        readout_mode=readout_mode)
+            test_plot_all_expect(snames, fnames, tpts, Np, use_logical=False,
+                        is_lossy=is_lossy, use_hdf5=True,
+                        readout_mode=readout_mode)
         ts.get_timer()
         
         # Plot the phase diagram for the readout cavity state
