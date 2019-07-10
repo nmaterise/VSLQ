@@ -237,6 +237,102 @@ def plot_ac(tpts, fnames, snames, fext, dfac=10,
                 'a_{cr}', snames, fext, scale=1.0)
 
 
+def test_plot_all_expect_sep(sname, fprefix, tpts, Np,
+                         use_logical=True, is_lossy=False,
+                         use_hdf5=True, readout_mode='single'):
+    """
+    Plot the expectation values vs. time, generate separate files for each
+    of the state occupations
+    """
+
+    # Get the correct file name using the file extension passed in
+    if use_hdf5:
+        print('|%s> from (%s.hdf5)' % (sname, fprefix))
+    else:
+        print('|%s> from (%s.bin)' % (sname, fprefix))
+
+    # Read in the expecatation values from file
+    if use_logical:
+        oplist = ['P%d' % i for i in range(0, Np)]
+        oplist.append('PXlXr') 
+        fstr = 'full_lossy_%s' % readout_mode if is_lossy \
+               else 'full_lossless_%s' % readout_mode
+    else:
+        oplist = ['P%d' % i for i in range(0, Np)]
+        fstr = 'zoom_lossy_%s' % readout_mode if is_lossy \
+               else 'zoom_lossless_%s' % readout_mode
+
+    # Iterate over all of the operators whose expectation
+    # values we have calculated
+    ## Use h5py
+    if use_hdf5:
+        ## Open the hdf5 file
+        fid = hdf.File('%s.hdf5' % fprefix, 'r')
+        for op in oplist:
+
+            ## Setup the plot
+            fig, ax = plt.subplots(1, 1, figsize=(8, 6),
+                                tight_layout=True)
+            fsize = 24; lsize = 20; lw = 1.5;
+            ppt.set_axes_fonts(ax, fsize)
+
+            # Get the data from the data set in fid
+            opdata = fid[op][()]
+            
+            # Set the label for the legends
+            plabel = regex.findall('\d+', op)[-1] if \
+                     regex.findall('\d+', op) != []\
+                     else op
+            if op == 'PXlXr':
+                plabel = r'L_0'
+            ax.plot(tpts, opdata.real, linewidth=lw)
+
+            # Set the axes labels
+            ax.set_xlabel(r'Time [$\mu$s]', fontsize=fsize)
+            ax.set_ylabel(r'Population of the $\left|{%s}\right>$ state' \
+                    % plabel, fontsize=fsize)
+            ax.set_title(r'Initial State ($\left|{%s}\right>$)' \
+                    % sname, fontsize=fsize)
+
+            # Save the figure to file
+            print('Writing figure to figs/logical_expect_leakage_%s_%s_%s.pdf' \
+                    % (sname, fstr, plabel) )
+            fig.savefig('figs/logical_expect_leakage_%s_%s_%s.pdf' \
+                    % (sname, fstr, plabel),
+                    format='pdf') 
+            plt.close()
+
+    ## Use pickle
+    else:
+        for op in oplist:
+            fname = '%s_%s.bin' % (fprefix, op)
+            with open(fname, 'rb') as fid:
+                opdata = pk.load(fid)
+            
+            # Set the label for the legends
+            plabel = regex.findall('\d+', op)[-1] if \
+                     regex.findall('\d+', op) != []\
+                     else op
+            if op == 'PXlXr':
+                plabel = r'L_0'
+            ax.plot(tpts, opdata.real, linewidth=lw)
+
+            # Set the axes labels
+            ax.set_xlabel(r'Time [$\mu$s]', fontsize=fsize)
+            ax.set_ylabel(r'Population of the $\left|{%s}\right>$ state' \
+                    % plabel, fontsize=fsize)
+            ax.set_title(r'Initial State ($\left|{%s}\right>$)' \
+                    % sname, fontsize=fsize)
+
+            # Save the figure to file
+            print('Writing figure to figs/logical_expect_leakage_%s_%s_%s.pdf' \
+                    % (sname, fstr, plabel) )
+            fig.savefig('figs/logical_expect_leakage_%s_%s_%s.pdf' \
+                    % (sname, fstr, plabel),
+                    format='pdf') 
+            plt.close()
+
+
 def test_plot_all_expect(sname, fprefix, tpts, Np,
                          use_logical=True, is_lossy=False,
                          use_hdf5=True, readout_mode='single'):
@@ -359,20 +455,20 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
     # Skip straigh to the plotds
     if plot_write == 'p':
         print('\nPlotting expectation values ...\n')
-        ts.set_timer('test_plot_all_expect')
+        ts.set_timer('test_plot_all_expect_sep')
         if snames.__class__ == list:
             for ss, ff in zip(snames, fnames):
-                test_plot_all_expect(ss, ff, tpts, Np, use_logical=True,
+                test_plot_all_expect_sep(ss, ff, tpts, Np, use_logical=True,
                         is_lossy=is_lossy, use_hdf5=True,
                         readout_mode=readout_mode)
-                test_plot_all_expect(ss, ff, tpts, Np, use_logical=False,
+                test_plot_all_expect_sep(ss, ff, tpts, Np, use_logical=False,
                         is_lossy=is_lossy, use_hdf5=True,
                         readout_mode=readout_mode)
         else:
-            test_plot_all_expect(snames, fnames, tpts, Np, use_logical=True,
+            test_plot_all_expect_sep(snames, fnames, tpts, Np, use_logical=True,
                         is_lossy=is_lossy, use_hdf5=True,
                         readout_mode=readout_mode)
-            test_plot_all_expect(snames, fnames, tpts, Np, use_logical=False,
+            test_plot_all_expect_sep(snames, fnames, tpts, Np, use_logical=False,
                         is_lossy=is_lossy, use_hdf5=True,
                         readout_mode=readout_mode)
         ts.get_timer()
@@ -399,12 +495,14 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
 
             # Plot the results
             print('\nPlotting expectation values ...\n')
-            ts.set_timer('test_plot_all_expect')
+            ts.set_timer('test_plot_all_expect_sep')
             for ss, ff in zip(snames, fnames):
-                test_plot_all_expect(ss, ff, tpts, Np, True, is_lossy,
-                                     readout_mode)
-                test_plot_all_expect(ss, ff, tpts, Np, False, is_lossy,
-                                     readout_mode)
+                test_plot_all_expect_sep(ss, ff, tpts, Np, use_logical=False,
+                        is_lossy=is_lossy, use_hdf5=True,
+                        readout_mode=readout_mode)
+                test_plot_all_expect_sep(ss, ff, tpts, Np, use_logical=True,
+                        is_lossy=is_lossy, use_hdf5=True,
+                        readout_mode=readout_mode)
             ts.get_timer()
         else:
             print('\nWriting expectation values ...\n')
@@ -414,11 +512,13 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
                                use_sparse=use_sparse)
             ts.get_timer()
             print('\nPlotting expectation values ...\n')
-            ts.set_timer('test_plot_all_expect')
-            test_plot_all_expect(snames, fnames, tpts, Np, True, is_lossy,
-                                 readout_mode)
-            test_plot_all_expect(snames, fnames, tpts, Np, False, is_lossy,
-                                 readout_mode)
+            ts.set_timer('test_plot_all_expect_sep')
+            test_plot_all_expect_sep(snames, fnames, tpts, Np, use_logical=True,
+                        is_lossy=is_lossy, use_hdf5=True,
+                        readout_mode=readout_mode)
+            test_plot_all_expect_sep(snames, fnames, tpts, Np, use_logical=False,
+                        is_lossy=is_lossy, use_hdf5=True,
+                        readout_mode=readout_mode)
             ts.get_timer()
 
         # Plot the phase diagram for the readout cavity state
@@ -426,7 +526,7 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
             print('\nGenerating phase diagrams ...\n')
             print('>> Readout mode: (%s)')
             ts.set_timer('plot_ac')
-            plot_ac(tpts, fnames, snames, 'L1L0',
+            plot_ac(tpts, fnames, snames, 'L0L1',
                     dfac=dfac, readout_mode=readout_mode)
             ts.get_timer()
 
@@ -454,7 +554,7 @@ def vslq_readout_dump_expect(tpts, Np, Ns, Nc, snames,
 if __name__ == '__main__':
 
     # Iterate over all the files and pass in labels
-    snames = ['L_0', 'L_1', '\widetilde{L1}']
+    snames = ['L_0', 'L_1', '\widetilde{L}_1']
     fnames = ['data/rho_vslq_L0_0.11_us', 'data/rho_vslq_L1_0.11_us',
               'data/rho_vslq_l1L1_0.11_us']
     print('__main__ does nothing here ...')
