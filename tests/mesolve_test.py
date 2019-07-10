@@ -90,11 +90,12 @@ class qho2(base_cqed_mops):
 
         # Call the base constructor
         base_cqed_mops.__init__(self, tpts=tpts, N1=N1, N2=N2, w1=w1, w2=w2,
-                                gamma1=gamma1, gamma2=gamma2, g=g)
+                                gamma1=gamma1, gamma2=gamma2, g=g,
+                                use_Ht=use_Ht)
 
         # Set the operators
         self.set_ops()
-        self.set_H(tpts, use_Ht)
+        self.set_H(tpts, [])
         self.set_cops([gamma1, gamma2],\
                       [self.a1, self.a2])
 
@@ -127,8 +128,8 @@ class qho2(base_cqed_mops):
         Set the Hamiltonian
         """
 
-        # Extract args
-        use_Ht = args
+        # Check that the time dependence is / is not used
+        print('use_Ht: %r' % self.use_Ht)
 
         # H = w1 a1^t a1 + w2 a2^t a2 + g(a1 + a1^t) (a2 + a2^t) 
         #       + sqrt(2) cos(w2 t) (a1 + a1^t)
@@ -138,7 +139,7 @@ class qho2(base_cqed_mops):
                        + self.a1@mops.dag(self.a2))
 
         # Combine both components as a single list
-        if use_Ht:
+        if self.use_Ht:
             print('Using time-dependent Hamiltonian ...')
             Hp = self.a1 + mops.dag(self.a1)
             delta = abs(self.w1 - self.w2)
@@ -247,7 +248,7 @@ def test_qho2_mesolve_fock_decay(N):
     
     plt.legend(loc='best')
     # plt.show()
-    plt.savefig('figs/qho2_n1n2_detuned_%d.eps' % N, format='eps')
+    plt.savefig('figs/qho2_n1n2_detuned_%d.pdf' % N, format='pdf')
 
 
 def test_qho2_mesolve_fock_unitary(N):
@@ -256,24 +257,29 @@ def test_qho2_mesolve_fock_unitary(N):
     """
 
     # Choose physical parameters
-    delta = 2*np.pi*0.1
+    delta = 0 #2*np.pi*0.1
     w1 = 2*np.pi*1; w2 = (w1-delta)
     N1 = 15; N2 = 2;
     g = max(w1, w2) / 20
     T = 4*2*np.pi / (2*g) 
     gamma1 = 0.; gamma2 = 0.;
 
+    # Set the number times based on the time step
+    dt0 = 1. / (5. * np.sqrt(w1**2 + w2**2))
+    Nt = int(np.floor(T / dt0)) + 1
+    print('Number of time steps: %d' % Nt)
+
     # Set the times and time step
-    tpts = np.linspace(0, T, 101)
+    tpts = np.linspace(0, T, Nt)
     dt = tpts.max() / (tpts.size)
 
     # Set the initial density matrix and solve for the new rho
     psi0 = mops.tensor(mops.basis(N1, 0), mops.basis(N2, N))
     
     # Initialize the class object and run_dynamics()
-    my_qho = qho2(tpts, N1, N2, w1, w2, g, gamma1, gamma2)
+    my_qho = qho2(tpts, N1, N2, w1, w2, g, gamma1, gamma2, use_Ht=False)
     my_qho.set_init_state(psi0)
-    psi = my_qho.run_dynamics(tpts, [], dt=dt)
+    psi = my_qho.run_dynamics(tpts, [], dt=dt, use_sparse=True)
 
     # Get the average popultion, n1
     n1 = mops.expect(my_qho.n1, psi)
@@ -285,7 +291,7 @@ def test_qho2_mesolve_fock_unitary(N):
     plt.plot(tpts, np.abs(n1), label=r'$\langle{a_1^{\dagger}a_1}\rangle$')
     plt.plot(tpts, np.abs(n2), label=r'$\langle{a_2^{\dagger}a_2}\rangle$')
     plt.legend(loc='best')
-    plt.savefig('figs/qho2_n1n2_detuned_%d.eps' % N, format='eps')
+    plt.savefig('figs/qho2_n1n2_detuned_%d.pdf' % N, format='pdf')
 
 
 def test_qho2_mesolve_driven(N):

@@ -160,7 +160,8 @@ def expect(op, rho):
     
     # Check if rho is a state vector, <a> = < psi | a | psi >
     elif np.min(dims) == 1:
-        return np.array([dag(rho[i])@op@rho[i] for i in range(rho.shape[0])])
+        exp_out = np.array([dag(rho[i])@op@rho[i] for i in range(rho.shape[0])])
+        return exp_out.ravel()
     
     # Dimensions problem
     else:
