@@ -315,7 +315,9 @@ class rk4:
 
 class mesolve_rk4(rk4):
     """
-    Lindblad master equation solver using the rk4 class options above
+    Lindblad master equation solver using the rk4 class options above;
+    defaults to Schrodinger equation evolution when input is a state vector
+    and the cops are empty 
     """
 
     def __init__(self, rho0, tpts, dt, H, cops, use_sparse=False):
@@ -343,11 +345,11 @@ class mesolve_rk4(rk4):
                      cops=cops, use_sparse=use_sparse)
 
 
-    def rhs(self, rho, t):
+    def me_rhs(self, rho, t):
         """
-        Implement the right hand side of the Lindblad master equation
-        """       
-       
+        Master equation rhs
+        """ 
+
         # Lindblad equation using the expanded form for the dissipator
         ## Compute the unitary contribution
         ## Time independent case
@@ -392,7 +394,61 @@ class mesolve_rk4(rk4):
         rhs_data = Hcommrho + Drho
 
         return rhs_data
-   
+
+
+    def schrodinger_rhs(self, psi, t):
+        """
+        Schrodinger equation rhs
+        """ 
+
+        # Lindblad equation using the expanded form for the dissipator
+        ## Compute the unitary contribution
+        ## Time independent case
+        if self.H.__class__ == np.ndarray \
+            or self.H.__class__ == scipy.sparse.csc.csc_matrix \
+            or self.H.__class__ == scipy.sparse.csr.csr_matrix:
+
+            rhs_data = -1j * self.H @ psi
+
+        ## Time dependent case
+        elif self.H.__class__ == list:
+            # Extract time-independent and time-dependent components
+            H0 = self.H[0]; Hp = self.H[1]
+
+            # Multiply and add Hp components
+            Hpp = sum([h*d(t) for h, d in Hp])
+
+            # Sum contributions and compute commutator
+            Htot = H0 + Hpp
+            rhs_data = -1j * Htot @ psi
+
+        else:
+            raise TypeError('Time dependent Hamiltonian type (%s) not \
+                             supported' % self.H.__class__)
+
+        return rhs_data
+
+
+    def rhs(self, rho, t):
+        """
+        Implement the right hand side of the Lindblad master equation
+        """       
+
+        # Check for rho that is matrix and cops != []
+        ## Call the master equation solver
+        if rho.shape[0] == rho.shape[1]:
+            return self.me_rhs(rho, t)
+
+        ## Call the Schrodinger equation rhs
+        elif np.min(rho.shape) == 1:
+            return self.schrodinger_rhs(rho, t)
+
+        ## Matrix is not square or a column vector
+        else:
+            raise TypeError('Input density matrix / state vector is not\
+                             a square matrix or column vector (%d x %d)' \
+                             % (rho.shape[0], rho.shape[1]))
+
 
     def mesolve(self):
         """

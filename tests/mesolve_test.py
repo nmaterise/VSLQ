@@ -6,11 +6,10 @@ using a quantum harmonic oscillator with and without dissipation
 """
 
 # Add the VSLQ path 
-from test_utils import set_path
-set_path()
-
 import numpy as np
 import matplotlib.pyplot as plt
+from test_utils import set_path
+set_path()
 import matrix_ops as mops
 import post_proc_tools as ppt
 from qubit_cavity import base_cqed_mops
@@ -251,6 +250,44 @@ def test_qho2_mesolve_fock_decay(N):
     plt.savefig('figs/qho2_n1n2_detuned_%d.eps' % N, format='eps')
 
 
+def test_qho2_mesolve_fock_unitary(N):
+    """
+    Test the population transfer of two oscillators, unitary evolution
+    """
+
+    # Choose physical parameters
+    delta = 2*np.pi*0.1
+    w1 = 2*np.pi*1; w2 = (w1-delta)
+    N1 = 15; N2 = 2;
+    g = max(w1, w2) / 20
+    T = 4*2*np.pi / (2*g) 
+    gamma1 = 0.; gamma2 = 0.;
+
+    # Set the times and time step
+    tpts = np.linspace(0, T, 101)
+    dt = tpts.max() / (tpts.size)
+
+    # Set the initial density matrix and solve for the new rho
+    psi0 = mops.tensor(mops.basis(N1, 0), mops.basis(N2, N))
+    
+    # Initialize the class object and run_dynamics()
+    my_qho = qho2(tpts, N1, N2, w1, w2, g, gamma1, gamma2)
+    my_qho.set_init_state(psi0)
+    psi = my_qho.run_dynamics(tpts, [], dt=dt)
+
+    # Get the average popultion, n1
+    n1 = mops.expect(my_qho.n1, psi)
+
+    # Get the average popultion, n2
+    n2 = mops.expect(my_qho.n2, psi)
+
+    # Plot the results
+    plt.plot(tpts, np.abs(n1), label=r'$\langle{a_1^{\dagger}a_1}\rangle$')
+    plt.plot(tpts, np.abs(n2), label=r'$\langle{a_2^{\dagger}a_2}\rangle$')
+    plt.legend(loc='best')
+    plt.savefig('figs/qho2_n1n2_detuned_%d.eps' % N, format='eps')
+
+
 def test_qho2_mesolve_driven(N):
     """
     Test driven population transfer of two oscillators with decay
@@ -392,4 +429,5 @@ if __name__ == '__main__':
     # test_qho_mesolve_fock_decay(1)
     # test_qho_mesolve_coherent_decay(1)
     # test_qho2_mesolve_fock_decay(1)
-    test_qho2_mesolve_driven(0)
+    # test_qho2_mesolve_driven(0)
+    test_qho2_mesolve_fock_unitary(1)

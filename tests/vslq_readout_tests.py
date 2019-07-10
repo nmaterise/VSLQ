@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Tests of the readout + VSLQ 
-
 """
 
 # Add the VSLQ path 

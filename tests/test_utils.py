@@ -15,4 +15,4 @@ def set_path():
     vslq_path = '%s/../VSLQ' % cwd
     
     if vslq_path not in sys.path:
-        sys.path.append(vslq_path)
+        sys.path.insert(0, vslq_path)
