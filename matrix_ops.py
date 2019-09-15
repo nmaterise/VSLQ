@@ -79,8 +79,9 @@ def coherent(N, alpha):
     
     # Compute the remaining terms
     for n in range(N):
-        alpha_ket += basis(N, n)*np.exp(-np.abs(alpha)**2)*alpha**n\
-                     / math.factorial(n)
+        alpha_ket += basis(N, n)*alpha**n / np.sqrt(math.factorial(n))
+
+    alpha_ket *= np.exp(-(np.abs(alpha)**2) / 2.)
 
     return alpha_ket
 
