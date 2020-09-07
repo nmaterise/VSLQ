@@ -155,8 +155,8 @@ def test_parfor_get_gamma_sparse():
     T1p_min = 5.; T1p_max = 80.;  gammas = 9.2;
 
     # Set the gammap list
-    # gammap = 1./np.linspace(T1p_min, T1p_max, 16)
-    gammap = 1./np.array([5., 80.])
+    gammap = 1./np.linspace(T1p_min, T1p_max, 16)
+    # gammap = 1./np.array([5., 80.])
 
     # Call the parfor wrapper function
     print('Running gammap: %g MHz to %g MHz ...'\
@@ -184,7 +184,8 @@ def plot_exp_data():
     # Use the same set of gammap's as above
     gammap = np.linspace(5., 80., 16)
     # T1p = np.array([5, 15, 25, 35, 45, 55, 65, 75])
-    T1p = np.array([5, 80])
+    # T1p = np.array([5, 80])
+    T1p = np.linspace(5., 80., 16)
     # T1p = np.array([15, 25, 35, 45, 55, 65])
 
     # Call the plotting function
@@ -241,6 +242,6 @@ if __name__ == '__main__':
     
     # test_vslq_dissipative()
     test_parfor_get_gamma()
-    # plot_exp_data()
+    plot_exp_data()
     # plot_vslq_cmaps()
 
